@@ -53,6 +53,123 @@ fn test_initialize_twice_fails() {
     init(&env, &cid, &admin, &oracle, &token, &treasury);
 }
 
+/// Verify that a failed second `initialize` call leaves all contract state
+/// completely unchanged.
+///
+/// After successful initialization the test attempts to re-initialize with
+/// entirely different parameters (different admin, token, LTV, etc.).  The
+/// call must be rejected with `Error::AlreadyInitialized` (error code `#2`)
+/// and every piece of state that was written during the first initialization
+/// must remain exactly as it was.
+#[test]
+fn test_reinit_state_unchanged_after_failed_second_init() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+
+    let client = StellarKraalClient::new(&env, &cid);
+
+    // Capture state produced by the first (successful) initialization.
+    let state_before = client.get_state(&admin);
+    let fee_before  = client.get_fee_config();
+    let close_before = client.get_close_factor();
+    let loan_count_before  = state_before.total_loans;
+    let col_count_before   = state_before.total_collaterals;
+
+    // Attempt a second initialization with completely different parameters.
+    // We use the `try_` variant so the test continues after the expected failure.
+    let attacker_admin   = Address::generate(&env);
+    let attacker_oracle  = Address::generate(&env);
+    let attacker_token   = env.register_contract(None, MockToken);
+    let attacker_treasury = Address::generate(&env);
+
+    let result = client.try_initialize(
+        &attacker_admin,
+        &attacker_oracle,
+        &attacker_token,
+        &attacker_treasury,
+        &9000u32, // different LTV
+        &9000u32, // different liquidation threshold
+        &5u32,    // different min_quorum
+    );
+
+    // The call must be rejected with AlreadyInitialized (error code #2).
+    // In the Soroban SDK test harness, `try_` methods return
+    // `Result<Result<T, _>, Result<Error, _>>`, and a contract-returned error
+    // surfaces as `Err(Ok(Error::AlreadyInitialized))`.
+    assert_eq!(
+        result,
+        Err(Ok(Error::AlreadyInitialized)),
+        "second initialize must be rejected with AlreadyInitialized (#2)"
+    );
+
+    // --- verify admin is unchanged ---
+    let state_after = client.get_state(&admin);
+    assert_eq!(
+        state_after.admin, state_before.admin,
+        "admin must not change after failed re-init"
+    );
+
+    // --- verify token is unchanged ---
+    assert_eq!(
+        state_after.token, state_before.token,
+        "token must not change after failed re-init"
+    );
+
+    // --- verify LTV is unchanged ---
+    assert_eq!(
+        state_after.ltv_bps, state_before.ltv_bps,
+        "ltv_bps must not change after failed re-init"
+    );
+    assert_eq!(state_after.ltv_bps, 6000, "ltv_bps must remain at the initial 6000");
+
+    // --- verify liquidation threshold is unchanged ---
+    assert_eq!(
+        state_after.liq_threshold_bps, state_before.liq_threshold_bps,
+        "liq_threshold_bps must not change after failed re-init"
+    );
+    assert_eq!(state_after.liq_threshold_bps, 8000, "liq_threshold_bps must remain at the initial 8000");
+
+    // --- verify pause state is unchanged ---
+    assert_eq!(
+        state_after.is_paused, state_before.is_paused,
+        "is_paused must not change after failed re-init"
+    );
+
+    // --- verify oracle count is unchanged ---
+    assert_eq!(
+        state_after.oracle_count, state_before.oracle_count,
+        "oracle_count must not change after failed re-init"
+    );
+
+    // --- verify loan and collateral counters are unchanged ---
+    assert_eq!(
+        state_after.total_loans, loan_count_before,
+        "total_loans must not change after failed re-init"
+    );
+    assert_eq!(
+        state_after.total_collaterals, col_count_before,
+        "total_collaterals must not change after failed re-init"
+    );
+
+    // --- verify fee configuration is unchanged ---
+    let fee_after = client.get_fee_config();
+    assert_eq!(
+        fee_after.origination_fee_bps, fee_before.origination_fee_bps,
+        "origination_fee_bps must not change after failed re-init"
+    );
+    assert_eq!(
+        fee_after.interest_fee_bps, fee_before.interest_fee_bps,
+        "interest_fee_bps must not change after failed re-init"
+    );
+
+    // --- verify close factor is unchanged ---
+    let close_after = client.get_close_factor();
+    assert_eq!(
+        close_after, close_before,
+        "close_factor must not change after failed re-init"
+    );
+}
+
 #[test]
 #[should_panic(expected = "#3")]
 fn test_initialize_zero_admin_fails() {
