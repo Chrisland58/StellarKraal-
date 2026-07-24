@@ -1731,3 +1731,134 @@ proptest! {
         assert_eq!(loan.outstanding, loan.principal);
     }
 }
+
+// ── get_loan_count tests (issue #657) ───────────────────────────────────
+
+#[test]
+fn test_get_loan_count_zero() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    assert_eq!(client.get_loan_count(&borrower), 0);
+}
+
+#[test]
+fn test_get_loan_count_one() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    client.request_loan(&borrower, &vec![&env, col_id], &500_000);
+
+    assert_eq!(client.get_loan_count(&borrower), 1);
+}
+
+#[test]
+fn test_get_loan_count_multiple_and_statuses() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+    let other_borrower = Address::generate(&env);
+
+    let col1 = client.register_livestock(&borrower, &symbol_short!("goat"), &10, &1_000_000);
+    let loan1 = client.request_loan(&borrower, &vec![&env, col1], &400_000);
+
+    let col2 = client.register_livestock(&borrower, &symbol_short!("sheep"), &5, &1_000_000);
+    let _loan2 = client.request_loan(&borrower, &vec![&env, col2], &300_000);
+
+    let col3 = client.register_livestock(&borrower, &symbol_short!("cattle"), &1, &1_000_000);
+    let _loan3 = client.request_loan(&borrower, &vec![&env, col3], &200_000);
+
+    let col_other = client.register_livestock(&other_borrower, &symbol_short!("cattle"), &1, &1_000_000);
+    client.request_loan(&other_borrower, &vec![&env, col_other], &100_000);
+
+    assert_eq!(client.get_loan_count(&borrower), 3);
+    assert_eq!(client.get_loan_count(&other_borrower), 1);
+
+    client.repay_loan(&borrower, &loan1, &400_000);
+    assert_eq!(client.get_loan_count(&borrower), 2);
+}
+
+// ── price staleness tests (issue #652) ─────────────────────────────────
+
+#[test]
+fn test_health_factor_fresh_price() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += 1800;
+    });
+
+    let hf = client.health_factor(&loan_id);
+    assert!(hf >= 10_000);
+}
+
+#[test]
+fn test_health_factor_threshold_boundary() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += 3600;
+    });
+
+    let hf = client.health_factor(&loan_id);
+    assert!(hf >= 10_000);
+}
+
+#[test]
+fn test_health_factor_stale_price() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += 3601;
+    });
+
+    let res = client.try_health_factor(&loan_id);
+    assert_eq!(res, Err(Ok(Error::InvalidPrice)));
+}
+
+#[test]
+fn test_set_and_get_staleness_threshold() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    assert_eq!(client.get_staleness_threshold(), 3600);
+
+    client.set_staleness_threshold(&admin, &7200);
+    assert_eq!(client.get_staleness_threshold(), 7200);
+}
+
+#[test]
+#[should_panic(expected = "#3")]
+fn test_set_staleness_threshold_unauthorized() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let attacker = Address::generate(&env);
+
+    client.set_staleness_threshold(&attacker, &7200);
+}

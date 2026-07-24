@@ -175,7 +175,7 @@ The contract manages livestock-backed loans with the following responsibilities:
 - State changes: none.
 
 ### `health_factor(env, loan_id)`
-- Description: Compute the health factor scaled by 10,000 for a loan.
+- Description: Compute the health factor scaled by 10,000 for a loan. Rejects with `Error::InvalidPrice` if the latest oracle price is older than the configured staleness threshold (`STALE_THR`).
 - Parameters:
   - `loan_id` — loan identifier.
 - Returns: `Result<i128, Error>`.
@@ -207,6 +207,27 @@ The contract manages livestock-backed loans with the following responsibilities:
 - Parameters:
   - `owner` — owner address.
 - Returns: `u32` — count of non-liquidated collaterals. Returns 0 if none.
+- State changes: none.
+
+### `get_loan_count(env, borrower)`
+- Description: Get the number of active loans for a borrower.
+- Parameters:
+  - `borrower` — borrower address.
+- Returns: `u32` — count of active loans. Returns 0 if none.
+- State changes: none.
+
+### `set_staleness_threshold(env, admin, threshold)`
+- Description: Update the price staleness threshold (in ledgers/seconds).
+- Parameters:
+  - `admin` — admin address.
+  - `threshold` — staleness threshold in ledgers (default 3600).
+- Returns: `Result<(), Error>`.
+- State changes: updates `STALE_THR`, emits `StaleThr` event.
+
+### `get_staleness_threshold(env)`
+- Description: Read the current price staleness threshold.
+- Parameters: none.
+- Returns: `u64`.
 - State changes: none.
 
 ### `update_fee_config(env, admin, origination_fee_bps, interest_fee_bps)`

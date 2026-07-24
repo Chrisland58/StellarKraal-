@@ -342,7 +342,7 @@ impl StellarKraal {
         env.storage().instance().set(&TOTAL_LIQUIDITY, &0i128);
         env.storage().instance().set(&TWAP_WINDOW, &3600u64);
         env.storage().instance().set(&LAST_PRICE, &0i128);
-        env.storage().instance().set(&LAST_PRICE_TIME, &0u64);
+        env.storage().instance().set(&LAST_PRICE_TIME, &env.ledger().timestamp());
         env.storage().instance().set(&TWAP_PRICE, &0i128);
         env.storage().instance().set(&TWAP_SUM, &0i128);
         env.storage().instance().set(&TWAP_COUNT, &0u32);
@@ -868,13 +868,20 @@ impl StellarKraal {
     }
 
     // ── health_factor ─────────────────────────────────────────────────────
-    /// Compute the health factor for a loan (scaled by 10 000).
+    /// Compute the health factor for a loan (scaled by 10 000). Rejects with
+    /// [`Error::InvalidPrice`] if the oracle price is older than `STALE_THR`.
     pub fn health_factor(env: Env, loan_id: u64) -> Result<i128, Error> {
         let loan: LoanRecord = env
             .storage()
             .persistent()
             .get(&DataKey::Loan(loan_id))
             .ok_or(Error::LoanNotFound)?;
+        let last_price_time: u64 = env.storage().instance().get(&LAST_PRICE_TIME).unwrap_or(0);
+        let stale_threshold: u64 = env.storage().instance().get(&STALE_THR).unwrap_or(3600);
+        let now = env.ledger().timestamp();
+        if now.saturating_sub(last_price_time) > stale_threshold {
+            return Err(Error::InvalidPrice);
+        }
         let liq_thr: u32 = env.storage().instance().get(&LIQ_THR).unwrap();
         Self::compute_health_factor_with_thr(&loan, liq_thr)
     }
@@ -1004,6 +1011,21 @@ impl StellarKraal {
         count
     }
 
+    // ── get_loan_count ────────────────────────────────────────────────────
+    /// Get the number of active loans for a borrower.
+    pub fn get_loan_count(env: Env, borrower: Address) -> u32 {
+        let counter: u64 = env.storage().instance().get(&DataKey::LoanCounter).unwrap_or(0);
+        let mut count: u32 = 0;
+        for id in 1..=counter {
+            if let Some(loan) = env.storage().persistent().get::<_, LoanRecord>(&DataKey::Loan(id)) {
+                if loan.borrower == borrower && loan.status == LoanStatus::Active {
+                    count += 1;
+                }
+            }
+        }
+        count
+    }
+
     // ── get_loans ─────────────────────────────────────────────────────────
     /// Batch-fetch up to 20 loan records by explicit ID list (issue #670).
     ///
@@ -1020,6 +1042,33 @@ impl StellarKraal {
             }
         }
         Ok(loans)
+    }
+
+    // ── set_staleness_threshold ───────────────────────────────────────────
+    /// Set the price staleness threshold in ledgers/seconds.
+    pub fn set_staleness_threshold(
+        env: Env,
+        admin: Address,
+        threshold: u64,
+    ) -> Result<(), Error> {
+        Self::assert_initialized(&env)?;
+        Self::assert_not_paused(&env)?;
+        Self::assert_admin(&env, &admin)?;
+        admin.require_auth();
+
+        if threshold == 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        env.storage().instance().set(&STALE_THR, &threshold);
+        env.events().publish((symbol_short!("StaleThr"),), threshold);
+        Ok(())
+    }
+
+    // ── get_staleness_threshold ───────────────────────────────────────────
+    /// Get the current price staleness threshold.
+    pub fn get_staleness_threshold(env: Env) -> u64 {
+        env.storage().instance().get(&STALE_THR).unwrap_or(3600)
     }
 
     // ── update_fee_config ─────────────────────────────────────────────────
@@ -1253,6 +1302,9 @@ impl StellarKraal {
                 flagged_count += 1;
             }
         }
+
+        env.storage().instance().set(&LAST_PRICE, &median);
+        env.storage().instance().set(&LAST_PRICE_TIME, &env.ledger().timestamp());
 
         Ok(OracleReport {
             median,
