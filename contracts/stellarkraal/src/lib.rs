@@ -182,6 +182,10 @@ pub struct LoanRecord {
     pub last_interest_time: u64,
     /// Current lifecycle status.
     pub status: LoanStatus,
+    /// Optional ledger timestamp by which the loan must be repaid in full.
+    /// `None` means no deadline. When set and `env.ledger().timestamp()` exceeds
+    /// this value, `health_factor` treats the loan as past-due and returns 0.
+    pub due_ledger: Option<u64>,
 }
 
 /// Protocol fee configuration.
@@ -448,6 +452,15 @@ impl StellarKraal {
         Ok(())
     }
 
+    // ── get_liquidation_threshold ─────────────────────────────────────────
+    /// Return the current liquidation threshold in basis points.
+    ///
+    /// Read-only — no authentication required.
+    pub fn get_liquidation_threshold(env: Env) -> Result<u32, Error> {
+        Self::assert_initialized(&env)?;
+        Ok(env.storage().instance().get(&LIQ_THR).unwrap())
+    }
+
     // ── set_liquidation_threshold ─────────────────────────────────────────
     /// Update the liquidation threshold in basis points.
     pub fn set_liquidation_threshold(env: Env, admin: Address, threshold_bps: u32) -> Result<(), Error> {
@@ -537,11 +550,17 @@ impl StellarKraal {
 
     // ── request_loan ──────────────────────────────────────────────────────
     /// Request a new loan against one or more collateral records.
+    ///
+    /// `loan_duration_ledgers` is an optional deadline expressed as a number of
+    /// seconds from the current ledger timestamp. When provided the stored
+    /// `due_ledger` is set to `now + loan_duration_ledgers`. Pass `None` for
+    /// open-ended loans with no repayment deadline.
     pub fn request_loan(
         env: Env,
         borrower: Address,
         collateral_ids: Vec<u64>,
         amount: i128,
+        loan_duration_ledgers: Option<u64>,
     ) -> Result<u64, Error> {
         let _guard = ReentrancyGuard::new(&env)?;
         Self::assert_initialized(&env)?;
@@ -584,6 +603,9 @@ impl StellarKraal {
         let disbursement = amount.checked_sub(fee).ok_or(Error::InvalidAmount)?;
 
         let loan_id = Self::next_id(&env, DataKey::LoanCounter)?;
+        let due_ledger = loan_duration_ledgers.map(|dur| {
+            env.ledger().timestamp().saturating_add(dur)
+        });
         let loan = LoanRecord {
             id: loan_id,
             borrower: borrower.clone(),
@@ -594,6 +616,7 @@ impl StellarKraal {
             interest_accrued: 0,
             last_interest_time: env.ledger().timestamp(),
             status: LoanStatus::Active,
+            due_ledger,
         };
         env.storage().persistent().set(&DataKey::Loan(loan_id), &loan);
         env.storage().persistent().extend_ttl(&DataKey::Loan(loan_id), PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_LEDGERS);
@@ -870,6 +893,10 @@ impl StellarKraal {
     // ── health_factor ─────────────────────────────────────────────────────
     /// Compute the health factor for a loan (scaled by 10 000). Rejects with
     /// [`Error::InvalidPrice`] if the oracle price is older than `STALE_THR`.
+    ///
+    /// Past-due loans (where `due_ledger` is `Some(t)` and the current ledger
+    /// timestamp has exceeded `t`) are treated as immediately liquidatable and
+    /// return `0` rather than the collateral-derived health factor.
     pub fn health_factor(env: Env, loan_id: u64) -> Result<i128, Error> {
         let loan: LoanRecord = env
             .storage()
@@ -881,6 +908,12 @@ impl StellarKraal {
         let now = env.ledger().timestamp();
         if now.saturating_sub(last_price_time) > stale_threshold {
             return Err(Error::InvalidPrice);
+        }
+        // Past-due loans are considered immediately liquidatable.
+        if let Some(due) = loan.due_ledger {
+            if now > due {
+                return Ok(0);
+            }
         }
         let liq_thr: u32 = env.storage().instance().get(&LIQ_THR).unwrap();
         Self::compute_health_factor_with_thr(&loan, liq_thr)
