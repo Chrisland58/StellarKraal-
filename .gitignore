@@ -55,6 +55,13 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 *.lcov
+test_snapshots/
+**/test_snapshots/
+*.snap
+**/__snapshots__/
+playwright-report/
+test-results/
+.playwright/
 
 # Terraform
 .terraform/
@@ -63,3 +70,25 @@ coverage/
 .terraform.lock.hcl
 *.tfvars
 *.tfvars.json
+
+# Database files
+*.sqlite3
+*.sqlite
+*.db
+
+# Binary / large generated files
+infrastructure/terraform.exe
+infrastructure/terraform.zip
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Audit reports (generated output)
+frontend/audit-reports/
+
+# Storybook
+storybook-static/
+
+# Misc
+*.pem
+.cache/
