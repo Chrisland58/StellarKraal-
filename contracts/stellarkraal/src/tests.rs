@@ -2793,6 +2793,7 @@ fn test_pause_activated_event_data() {
         if topics.len() < 2 {
             return false;
         }
+        if topics.len() < 2 { return false; }
         let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
         let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
         t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
@@ -2805,6 +2806,7 @@ fn test_pause_activated_event_data() {
         if topics.len() < 2 {
             continue;
         }
+        if topics.len() < 2 { continue; }
         let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
         let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
         if t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
@@ -2834,6 +2836,7 @@ fn test_pause_lifted_event_data_manual() {
         if topics.len() < 2 {
             return false;
         }
+        if topics.len() < 2 { return false; }
         let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
         let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
         t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
@@ -2846,6 +2849,7 @@ fn test_pause_lifted_event_data_manual() {
         if topics.len() < 2 {
             continue;
         }
+        if topics.len() < 2 { continue; }
         let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
         let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
         if t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
@@ -2880,6 +2884,10 @@ fn test_pause_auto_expiry_no_lifted_event() {
     assert!(!client.is_paused(), "contract should auto-unpause after expiry");
 
     // Verify pause_activated was emitted (no lifted event since no unpause call).
+    env.ledger().with_mut(|li| { li.timestamp += 2; });
+
+    assert!(!client.is_paused(), "contract should auto-unpause after expiry");
+
     let all_events = env.events().all();
     let activated_count = all_events.iter().filter(|e| {
         let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
