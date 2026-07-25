@@ -77,6 +77,13 @@ The contract manages livestock-backed loans with the following responsibilities:
 - State changes: stores the cap for `animal_type`, emits an admin cap update event.
 - Compatibility: animal types without a configured cap behave as if the cap is `u128::MAX`, so existing deployments remain unrestricted until the admin sets a cap.
 
+### `get_liquidation_threshold(env)`
+- Description: Return the current liquidation threshold in basis points. This is a read-only query — no authentication required.
+- Parameters: none.
+- Returns: `Result<u32, Error>` — the current `LIQ_THR` value (e.g. `8000` = 80%).
+- State changes: none.
+- Errors: `NotInitialized` if the contract has not been initialized.
+
 ### `set_liquidation_threshold(env, admin, threshold_bps)`
 - Description: Update the liquidation threshold.
 - Parameters:
@@ -109,14 +116,15 @@ The contract manages livestock-backed loans with the following responsibilities:
 - Returns: `Result<u64, Error>` — newly assigned collateral ID.
 - State changes: creates `CollateralRecord` and stores it as unlocked collateral, emits a livestock registration event.
 
-### `request_loan(env, borrower, collateral_ids, amount)`
+### `request_loan(env, borrower, collateral_ids, amount, loan_duration_ledgers)`
 - Description: Request a new loan secured by one or more collateral records.
 - Parameters:
   - `borrower` — borrower address.
   - `collateral_ids` — list of collateral record IDs.
   - `amount` — requested gross loan amount in token base units.
+  - `loan_duration_ledgers` — optional duration in seconds from now. When provided the stored `due_ledger` is set to `now + loan_duration_ledgers`. Pass `None` for open-ended loans with no repayment deadline.
 - Returns: `Result<u64, Error>` — newly assigned loan ID.
-- State changes: validates collateral ownership, locks collaterals, stores `LoanRecord`, transfers origination fee to treasury, disburses net amount to borrower, emits loan requested event.
+- State changes: validates collateral ownership, locks collaterals, stores `LoanRecord` (with optional `due_ledger`), transfers origination fee to treasury, disburses net amount to borrower, emits loan requested event.
 
 ### `repay_loan(env, borrower, loan_id, amount)`
 - Description: Repay part or all of an active loan.
@@ -175,7 +183,7 @@ The contract manages livestock-backed loans with the following responsibilities:
 - State changes: none.
 
 ### `health_factor(env, loan_id)`
-- Description: Compute the health factor scaled by 10,000 for a loan. Rejects with `Error::InvalidPrice` if the latest oracle price is older than the configured staleness threshold (`STALE_THR`).
+- Description: Compute the health factor scaled by 10,000 for a loan. Rejects with `Error::InvalidPrice` if the latest oracle price is older than the configured staleness threshold (`STALE_THR`). Past-due loans (where `due_ledger` is set and the current ledger timestamp exceeds it) return `0` regardless of collateral, making them immediately liquidatable.
 - Parameters:
   - `loan_id` — loan identifier.
 - Returns: `Result<i128, Error>`.
@@ -442,7 +450,7 @@ Key contract storage state used by the interface:
 - `TOKEN`, `TREASURY` — token and treasury addresses.
 - `LTV`, `LIQ_THR`, `ORIG_FEE`, `INT_FEE`, `CLOSE_FACTOR` — protocol parameters.
 - `PAUSED`, `PAUSE_EXP`, `PAUSE_DUR` — pause control state.
-- `CollateralRecord` and `LoanRecord` persistent storage keyed by IDs.
+- `CollateralRecord` and `LoanRecord` persistent storage keyed by IDs. `LoanRecord` includes an optional `due_ledger: Option<u64>` timestamp representing the repayment deadline.
 - `BASE_RATE`, `SLOPE1`, `SLOPE2`, `KINK` — interest rate model parameters.
 - `TOTAL_BORROWED`, `TOTAL_LIQUIDITY` — liquidity tracking state.
 - `LAST_PRICE`, `LAST_PRICE_TIME`, `TWAP_PRICE`, `TWAP_SUM`, `TWAP_COUNT`, `TWAP_WINDOW` — oracle price and TWAP state.
@@ -453,28 +461,37 @@ Key contract storage state used by the interface:
 ## Invoking the Contract with `stellar-cli`
 
 Examples assume a deployed contract ID and Soroban testnet environment.
+Replace the placeholder `G...` addresses with real Stellar public keys.
 
 ```bash
-export CONTRACT_ID=G...YOUR_CONTRACT_ID...
+export CONTRACT_ID=GCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
 export RPC_URL=https://soroban-testnet.stellar.org
 export NETWORK=testnet
 ```
 
 ### Initialize the contract
 
+Sets up the protocol with a 60 % LTV, 80 % liquidation threshold, and minimum oracle quorum of 1.
+
 ```bash
 stellar contract invoke \
   --id "$CONTRACT_ID" \
   --fn initialize \
-  --arg address:$ADMIN_ADDRESS \
-  --arg address:$ORACLE_ADDRESS \
-  --arg address:$TOKEN_ADDRESS \
-  --arg address:$TREASURY_ADDRESS \
-  --arg u32:6000 \
-  --arg u32:8000 \
+  --arg address:GADMIN000000000000000000000000000000000000000000000ADMIN \
+  --arg address:GORACLE000000000000000000000000000000000000000000ORACLE \
+  --arg address:GTOKEN000000000000000000000000000000000000000000TOKEN0 \
+  --arg address:GTREASURY0000000000000000000000000000000000000TREASURY \
+  --arg 6000 \
+  --arg 8000 \
+  --arg 1 \
   --network "$NETWORK" \
   --rpc-url "$RPC_URL" \
-  --source "$ADMIN_ADDRESS"
+  --source GADMIN000000000000000000000000000000000000000000000ADMIN
+# Expected output: null  (unit return on success)
+# Errors:
+#   #2 AlreadyInitialized — contract was already initialized.
+#   #3 Unauthorized       — admin address is the all-zeros account.
+#   #8 InvalidAmount      — ltv_bps out of range [1,9000] or liq_thr < ltv.
 ```
 
 ### Register livestock collateral
@@ -483,27 +500,117 @@ stellar contract invoke \
 stellar contract invoke \
   --id "$CONTRACT_ID" \
   --fn register_livestock \
-  --arg address:$OWNER_ADDRESS \
-  --arg symbol:cattle \
-  --arg u32:5 \
-  --arg i128:1000000 \
+  --arg address:GOWNER000000000000000000000000000000000000000000000OWNER \
+  --arg cattle \
+  --arg 5 \
+  --arg 1000000 \
   --network "$NETWORK" \
   --rpc-url "$RPC_URL" \
-  --source "$OWNER_ADDRESS"
+  --source GOWNER000000000000000000000000000000000000000000000OWNER
+# Expected output: 1   (newly assigned collateral ID)
 ```
 
 ### Request a loan
+
+Request a loan against two collateral records with a 30-day repayment deadline
+(30 days ≈ 2 592 000 seconds). Pass `null` as the last argument for an open-ended
+loan with no deadline.
 
 ```bash
 stellar contract invoke \
   --id "$CONTRACT_ID" \
   --fn request_loan \
-  --arg address:$BORROWER_ADDRESS \
-  --arg vec:u64:$COLLATERAL_ID1,$COLLATERAL_ID2 \
-  --arg i128:500000 \
+  --arg address:GBORROWER000000000000000000000000000000000000000000000WL \
+  --arg "[1,2]" \
+  --arg 500000 \
+  --arg 2592000 \
   --network "$NETWORK" \
   --rpc-url "$RPC_URL" \
-  --source "$BORROWER_ADDRESS"
+  --source GBORROWER000000000000000000000000000000000000000000000WL
+# Expected output: 1   (the new loan ID)
+```
+
+Open-ended loan (no deadline):
+
+```bash
+stellar contract invoke \
+  --id "$CONTRACT_ID" \
+  --fn request_loan \
+  --arg address:GBORROWER000000000000000000000000000000000000000000000WL \
+  --arg "[1,2]" \
+  --arg 500000 \
+  --arg null \
+  --network "$NETWORK" \
+  --rpc-url "$RPC_URL" \
+  --source GBORROWER000000000000000000000000000000000000000000000WL
+# Expected output: 2   (the new loan ID)
+```
+
+### Repay a loan
+
+```bash
+stellar contract invoke \
+  --id "$CONTRACT_ID" \
+  --fn repay_loan \
+  --arg address:GBORROWER000000000000000000000000000000000000000000000WL \
+  --arg 1 \
+  --arg 200000 \
+  --network "$NETWORK" \
+  --rpc-url "$RPC_URL" \
+  --source GBORROWER000000000000000000000000000000000000000000000WL
+# Expected output: null  (unit return on success)
+# Repays 200 000 base-units toward loan #1; outstanding balance is reduced accordingly.
+```
+
+Full repayment (loan status transitions to `Repaid`):
+
+```bash
+stellar contract invoke \
+  --id "$CONTRACT_ID" \
+  --fn repay_loan \
+  --arg address:GBORROWER000000000000000000000000000000000000000000000WL \
+  --arg 1 \
+  --arg 9999999999 \
+  --network "$NETWORK" \
+  --rpc-url "$RPC_URL" \
+  --source GBORROWER000000000000000000000000000000000000000000000WL
+# The contract caps repayment at the outstanding + accrued interest balance,
+# so passing a very large amount is a safe way to fully close the loan.
+```
+
+### Liquidate a loan
+
+Liquidation is only possible when the health factor is below 10 000 (i.e. < 1.0).
+The `repay_amount` must not exceed the close-factor cap (default 50 % of outstanding).
+
+```bash
+stellar contract invoke \
+  --id "$CONTRACT_ID" \
+  --fn liquidate \
+  --arg address:GLIQUIDATOR00000000000000000000000000000000000000000LQ \
+  --arg 1 \
+  --arg 250000 \
+  --network "$NETWORK" \
+  --rpc-url "$RPC_URL" \
+  --source GLIQUIDATOR00000000000000000000000000000000000000000LQ
+# Expected output: null  (unit return on success)
+# Errors:
+#   #7  HealthFactorSafe    — loan is still healthy; not liquidatable.
+#   #11 ExceedsCloseFactor  — repay_amount > close_factor * outstanding.
+#   #23 LiquidatorNotWhitelisted — caller is not on the liquidator whitelist.
+```
+
+### Query the liquidation threshold
+
+Returns the current `LIQ_THR` value in basis points. No authentication required.
+
+```bash
+stellar contract invoke \
+  --id "$CONTRACT_ID" \
+  --fn get_liquidation_threshold \
+  --network "$NETWORK" \
+  --rpc-url "$RPC_URL"
+# Expected output: 8000  (80 % threshold after default initialization)
 ```
 
 ### Submit a new oracle price
@@ -512,12 +619,12 @@ stellar contract invoke \
 stellar contract invoke \
   --id "$CONTRACT_ID" \
   --fn submit_price \
-  --arg address:$ORACLE_ADDRESS \
-  --arg i128:125000 \
-  --arg u64:$(date +%s) \
+  --arg address:GORACLE000000000000000000000000000000000000000000ORACLE \
+  --arg 125000 \
   --network "$NETWORK" \
   --rpc-url "$RPC_URL" \
-  --source "$ORACLE_ADDRESS"
+  --source GORACLE000000000000000000000000000000000000000000ORACLE
+# Expected output: null  (unit return on success)
 ```
 
 ### Query a loan record
@@ -526,9 +633,22 @@ stellar contract invoke \
 stellar contract invoke \
   --id "$CONTRACT_ID" \
   --fn get_loan \
-  --arg u64:$LOAN_ID \
+  --arg 1 \
   --network "$NETWORK" \
   --rpc-url "$RPC_URL"
+# Expected output (example):
+# {
+#   "id": 1,
+#   "borrower": "GBORROWER...",
+#   "collateral_ids": [1, 2],
+#   "total_collateral_value": "1000000",
+#   "principal": "500000",
+#   "outstanding": "300000",
+#   "interest_accrued": "0",
+#   "last_interest_time": 1721836200,
+#   "status": "active",
+#   "due_ledger": 1724428200
+# }
 ```
 
 ### Transfer collateral ownership
@@ -537,12 +657,13 @@ stellar contract invoke \
 stellar contract invoke \
   --id "$CONTRACT_ID" \
   --fn transfer_collateral \
-  --arg address:$CURRENT_OWNER \
-  --arg u64:$COLLATERAL_ID \
-  --arg address:$NEW_OWNER \
+  --arg address:GOWNER000000000000000000000000000000000000000000000OWNER \
+  --arg 1 \
+  --arg address:GNEWOWNER0000000000000000000000000000000000000000NEWOWN \
   --network "$NETWORK" \
   --rpc-url "$RPC_URL" \
-  --source "$CURRENT_OWNER"
+  --source GOWNER000000000000000000000000000000000000000000000OWNER
+# Expected output: null  (unit return on success)
 ```
 
 ## Notes
