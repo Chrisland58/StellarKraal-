@@ -16,10 +16,21 @@ export const metadata: Metadata = {
 const guides = [
   {
     title: "Register Livestock as Collateral",
-    description: "Step-by-step guide to registering your animals on StellarKraal.",
+    description:
+      "Step-by-step guide for connecting your wallet, filling in the registration form, submitting the transaction, and confirming on-chain. Also covers common error cases.",
     links: [
-      { label: "English", href: "https://github.com/teslims2/StellarKraal-/blob/main/docs/guides/en/register-collateral.md" },
-      { label: "Kiswahili", href: "https://github.com/teslims2/StellarKraal-/blob/main/docs/guides/sw/register-collateral.md" },
+      {
+        label: "Full guide",
+        href: "https://github.com/teslims2/StellarKraal-/blob/main/docs/guides/register-collateral.md",
+      },
+      {
+        label: "English",
+        href: "https://github.com/teslims2/StellarKraal-/blob/main/docs/guides/en/register-collateral.md",
+      },
+      {
+        label: "Kiswahili",
+        href: "https://github.com/teslims2/StellarKraal-/blob/main/docs/guides/sw/register-collateral.md",
+      },
     ],
   },
 ];

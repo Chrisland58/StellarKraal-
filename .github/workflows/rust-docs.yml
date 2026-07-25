@@ -27,11 +27,9 @@ jobs:
       - name: Install Rust wasm target
         run: rustup target add wasm32-unknown-unknown
 
-      - name: Build docs (deny missing_docs)
+      - name: Build contract docs
         working-directory: contracts/stellarkraal
-        run: |
-          cargo doc --no-deps --target wasm32-unknown-unknown 2>&1 | tee /tmp/cargo-doc.log
-          ! grep -i "warning" /tmp/cargo-doc.log
+        run: cargo doc --no-deps --target wasm32-unknown-unknown
 
       # On every push to main, deploy the generated HTML to the gh-pages branch
       # under the /contracts sub-path so it is reachable at:

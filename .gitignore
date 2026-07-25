@@ -1,48 +1,53 @@
-# Dependencies
+# ── Node / npm ────────────────────────────────────────────────────────────────
 node_modules/
 **/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+.pnp/
+.pnp.js
 
-# Build artifacts - Frontend
+# ── Frontend build artifacts ──────────────────────────────────────────────────
 .next/
+**/.next/
 out/
 build/
 dist/
 **/dist/
-**/.next/
+storybook-static/
 
-# Build artifacts - Backend
+# ── Backend build artifacts ───────────────────────────────────────────────────
 backend/dist/
 backend/build/
 
-# Build artifacts - Rust/WASM
+# ── Rust / WASM build artifacts ───────────────────────────────────────────────
 target/
 **/target/
 *.wasm
 *.wasm.gz
 *.wasm.map
 
-# Environment variables
+# ── Environment variables ─────────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
 *.env
 !*.env.example
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-pnpm-debug.log*
+backend/logs/
 
-# IDE directories and files
+# ── IDE / editor ──────────────────────────────────────────────────────────────
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+Thumbs.db
 *.sublime-project
 *.sublime-workspace
 .project
@@ -50,26 +55,30 @@ pnpm-debug.log*
 .settings/
 *.iml
 
-# Testing
+# ── Testing ───────────────────────────────────────────────────────────────────
 coverage/
 .nyc_output/
 *.lcov
-test_snapshots/
-**/test_snapshots/
+# Jest / Vitest snapshots
 *.snap
 **/__snapshots__/
+# Playwright
 playwright-report/
 test-results/
 .playwright/
+# Audit reports (generated output)
+frontend/audit-reports/
 
-# Soroban test snapshots (auto-generated, do not commit)
+# ── Soroban test snapshots (auto-generated, do not commit) ────────────────────
+test_snapshots/
+**/test_snapshots/
 contracts/**/test_snapshots/
 
-# Fuzz artifacts and corpora (machine-generated, not hand-crafted)
+# ── Fuzz artifacts and corpora (machine-generated) ────────────────────────────
 contracts/**/fuzz/artifacts/
 contracts/**/fuzz/corpus/
 
-# Terraform
+# ── Terraform ─────────────────────────────────────────────────────────────────
 .terraform/
 *.tfstate
 *.tfstate.backup
@@ -77,37 +86,21 @@ contracts/**/fuzz/corpus/
 *.tfvars
 *.tfvars.json
 
-# Database files
+# ── Database files ────────────────────────────────────────────────────────────
 *.sqlite3
 *.sqlite
 *.db
-
-# Binary / large generated files
-infrastructure/terraform.exe
-infrastructure/terraform.zip
-
-# TypeScript incremental build info
-*.tsbuildinfo
-
-# Audit reports (generated output)
-frontend/audit-reports/
-
-# Storybook
-storybook-static/
-
-# Misc
-*.pem
-.cache/
-# Large binary blobs committed by mistake
-infrastructure/terraform.exe
-infrastructure/terraform.zip
-
-# SQLite dev databases
 backend/*.sqlite3
 backend/*.db
 
-# TypeScript incremental build info
+# ── Binary / large generated blobs (not source) ───────────────────────────────
+infrastructure/terraform.exe
+infrastructure/terraform.zip
+
+# ── TypeScript incremental build info ────────────────────────────────────────
+*.tsbuildinfo
 **/*.tsbuildinfo
 
-# OS metadata
-Thumbs.db
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.pem
+.cache/
