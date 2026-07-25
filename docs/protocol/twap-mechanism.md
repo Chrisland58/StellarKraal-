@@ -33,8 +33,9 @@ Where:
 
 ### Window Management
 
-- **Default Window**: 1 hour (3600 seconds)
-- **Configurable**: Admin can adjust window via `set_twap_window()`
+- **Default Window**: 720 ledgers (~1 hour at ~5 s/ledger)
+- **Configurable at init**: Pass `twap_window_ledgers` to `initialize()` (v1.1.0+)
+- **Configurable post-deploy**: Admin can adjust via `set_twap_window()`
 - **Rolling**: Window slides forward as new prices are submitted
 - **Reset**: When window expires, TWAP resets with new price
 
@@ -117,21 +118,50 @@ pub struct TWAPData {
 
 ## Configuration
 
-### Setting TWAP Window
+### Setting TWAP Window at Initialization
 
-The TWAP window can be configured by the admin:
+Since v1.1.0, the TWAP window can be specified when the contract is first
+deployed by passing the `twap_window_ledgers` parameter to `initialize()`:
 
 ```rust
-set_twap_window(admin: Address, window_seconds: u64) -> Result<(), Error>
+initialize(
+    admin,
+    oracle,
+    token,
+    treasury,
+    ltv_bps,
+    liquidation_threshold_bps,
+    min_quorum,
+    twap_window_ledgers,   // 0 → default 720 ledgers (~1 hour)
+)
+```
+
+Passing `0` applies the default of **720 ledgers** (≈ 1 hour at Stellar's
+~5 s/ledger throughput).
+
+### Updating TWAP Window (Admin)
+
+The TWAP window can be updated at any time by the admin:
+
+```rust
+set_twap_window(admin: Address, window_ledgers: u64) -> Result<(), Error>
+```
+
+Passing `0` returns `InvalidAmount`.
+
+### Reading the Current TWAP Window
+
+```rust
+get_twap_window() -> u64
 ```
 
 ### Recommended Windows
 
-| Use Case | Window | Rationale |
-|----------|--------|-----------|
-| Volatile Assets | 1 hour | Captures short-term volatility |
-| Stable Assets | 30 minutes | Faster response to changes |
-| Conservative | 4 hours | Maximum protection |
+| Use Case | Window (ledgers) | Approximate Duration |
+|----------|-----------------|----------------------|
+| Conservative (volatile assets) | 2 880 | ~4 hours |
+| **Default** | **720** | **~1 hour** |
+| Responsive (stable assets) | 360 | ~30 minutes |
 
 ## Security Considerations
 

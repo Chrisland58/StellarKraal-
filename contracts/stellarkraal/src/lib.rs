@@ -343,6 +343,15 @@ impl StellarKraal {
             return Err(Error::InvalidAmount);
         }
         admin.require_auth();
+
+        /// Default TWAP window: 720 ledgers ≈ 1 hour (at ~5 s/ledger).
+        const DEFAULT_TWAP_WINDOW: u64 = 720;
+        let twap_window = if twap_window_ledgers == 0 {
+            DEFAULT_TWAP_WINDOW
+        } else {
+            twap_window_ledgers
+        };
+
         env.storage().instance().set(&ADMIN, &admin);
         env.storage().instance().set(&ORACLE, &oracle);
         env.storage().instance().set(&TOKEN, &token);
@@ -373,6 +382,43 @@ impl StellarKraal {
         env.storage().instance().set(&MIN_LOAN, &DEFAULT_MIN_LOAN);
         env.storage().instance().set(&MAX_LOAN, &DEFAULT_MAX_LOAN);
         Ok(())
+    }
+
+    // ── set_twap_window ───────────────────────────────────────────────────
+    /// Update the TWAP window (in ledgers) used to smooth oracle prices.
+    ///
+    /// A larger window provides stronger protection against flash-loan
+    /// price manipulation at the cost of slower response to genuine market
+    /// moves.  The recommended default is **720 ledgers** (~1 hour).
+    ///
+    /// Passing `0` returns [`Error::InvalidAmount`].
+    ///
+    /// # Access control
+    ///
+    /// Only the current admin may call this function.
+    pub fn set_twap_window(env: Env, admin: Address, window_ledgers: u64) -> Result<(), Error> {
+        Self::assert_initialized(&env)?;
+        Self::assert_admin(&env, &admin)?;
+        admin.require_auth();
+
+        if window_ledgers == 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        let old_window: u64 = env.storage().instance().get(&TWAP_WINDOW).unwrap_or(720);
+        env.storage().instance().set(&TWAP_WINDOW, &window_ledgers);
+
+        env.events().publish(
+            (symbol_short!("TWAP"), symbol_short!("winUpd")),
+            (old_window, window_ledgers),
+        );
+        Ok(())
+    }
+
+    // ── get_twap_window ───────────────────────────────────────────────────
+    /// Return the current TWAP window in ledgers.
+    pub fn get_twap_window(env: Env) -> u64 {
+        env.storage().instance().get(&TWAP_WINDOW).unwrap_or(720)
     }
 
     // ── is_paused ─────────────────────────────────────────────────────────
