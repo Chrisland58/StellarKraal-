@@ -2,6 +2,9 @@
  * Contract event listener for StellarKraal Soroban contract.
  * Polls the RPC for contract events and updates the local database.
  *
+ * Full event schemas (topics, data fields, types, JSON examples) are documented in:
+ *   docs/protocol/events.md
+ *
  * Events handled:
  * - livestock/registered  → upsert collateral record
  * - loan/requested        → upsert loan record
@@ -9,6 +12,14 @@
  * - loan_liquidated       → update loan status to liquidated, record liquidation event
  *                           Topics: [loan_liquidated, borrower, liquidator]
  *                           Data:   (loan_id, repay_amount, collateral_seized)
+ * - livestock/registered  → upsert collateral record          (events.md §1)
+ * - loan/requested        → upsert loan record                (events.md §2)
+ * - loan_repaid           → update loan outstanding balance   (events.md §3)
+ * - loan/liquidated       → update loan status + insert event (events.md §4)
+ *
+ * Unhandled events (Admin/*, fee/cfgUpd, whitelist/*, upgrade/*, TWAP/price,
+ * Pause, Unpause, StaleThr) are logged at debug level but not persisted.
+ * See docs/protocol/events.md §5–§23 for their full schemas.
  */
 
 import { rpc as SorobanRpc, xdr, Address } from "@stellar/stellar-sdk";
