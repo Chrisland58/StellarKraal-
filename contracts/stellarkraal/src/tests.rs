@@ -229,6 +229,35 @@ fn test_initialize_ltv_above_max_fails() {
 }
 
 #[test]
+#[should_panic(expected = "#3")]
+fn test_initialize_zero_admin_fails() {
+    use soroban_sdk::String;
+    let (env, cid, _admin, oracle, token, treasury) = setup();
+    let client = StellarKraalClient::new(&env, &cid);
+    let zero = Address::from_string(&String::from_str(
+        &env,
+        "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+    ));
+    client.initialize(&zero, &oracle, &token, &treasury, &6000u32, &8000u32, &1u32);
+}
+
+#[test]
+#[should_panic(expected = "#8")]
+fn test_initialize_zero_ltv_fails() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    let client = StellarKraalClient::new(&env, &cid);
+    client.initialize(&admin, &oracle, &token, &treasury, &0u32, &8000u32, &1u32);
+}
+
+#[test]
+#[should_panic(expected = "#8")]
+fn test_initialize_ltv_above_max_fails() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    let client = StellarKraalClient::new(&env, &cid);
+    client.initialize(&admin, &oracle, &token, &treasury, &9001u32, &9500u32, &1u32);
+}
+
+#[test]
 #[should_panic(expected = "#8")]
 fn test_initialize_liq_below_ltv_fails() {
     let (env, cid, admin, oracle, token, treasury) = setup();
@@ -1998,6 +2027,40 @@ fn test_health_factor_fresh_price() {
 
     let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
     let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000, &None);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += 1800;
+    });
+
+    let loan1 = client.request_loan(&borrower, &vec![&env, col1], &400_000);
+
+    let col2 = client.register_livestock(&borrower, &symbol_short!("sheep"), &5, &1_000_000);
+    let _loan2 = client.request_loan(&borrower, &vec![&env, col2], &300_000);
+
+    let col3 = client.register_livestock(&borrower, &symbol_short!("cattle"), &1, &1_000_000);
+    let _loan3 = client.request_loan(&borrower, &vec![&env, col3], &200_000);
+
+    let col_other = client.register_livestock(&other_borrower, &symbol_short!("cattle"), &1, &1_000_000);
+    client.request_loan(&other_borrower, &vec![&env, col_other], &100_000);
+
+    assert_eq!(client.get_loan_count(&borrower), 3);
+    assert_eq!(client.get_loan_count(&other_borrower), 1);
+
+    client.repay_loan(&borrower, &loan1, &400_000);
+    assert_eq!(client.get_loan_count(&borrower), 2);
+}
+
+// ── price staleness tests (issue #652) ─────────────────────────────────
+
+#[test]
+fn test_health_factor_fresh_price() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
     let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
 
     env.ledger().with_mut(|li| {
