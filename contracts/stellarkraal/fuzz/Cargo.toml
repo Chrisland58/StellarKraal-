@@ -38,3 +38,10 @@ path = "fuzz_targets/interest_rate.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "liquidation"
+path = "fuzz_targets/liquidation.rs"
+test = false
+doc = false
+bench = false

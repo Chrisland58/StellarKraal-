@@ -38,7 +38,6 @@ lerna-debug.log*
 pnpm-debug.log*
 
 # IDE directories and files
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -62,6 +61,13 @@ test_snapshots/
 playwright-report/
 test-results/
 .playwright/
+
+# Soroban test snapshots (auto-generated, do not commit)
+contracts/**/test_snapshots/
+
+# Fuzz artifacts and corpora (machine-generated, not hand-crafted)
+contracts/**/fuzz/artifacts/
+contracts/**/fuzz/corpus/
 
 # Terraform
 .terraform/
@@ -92,3 +98,16 @@ storybook-static/
 # Misc
 *.pem
 .cache/
+# Large binary blobs committed by mistake
+infrastructure/terraform.exe
+infrastructure/terraform.zip
+
+# SQLite dev databases
+backend/*.sqlite3
+backend/*.db
+
+# TypeScript incremental build info
+**/*.tsbuildinfo
+
+# OS metadata
+Thumbs.db

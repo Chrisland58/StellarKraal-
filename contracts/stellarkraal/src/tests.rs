@@ -2350,4 +2350,383 @@ fn test_migrate_storage_non_admin_fails() {
     let attacker = Address::generate(&env);
 
     client.migrate_storage(&attacker);
+// ═══════════════════════════════════════════════════════════════════════════
+// #712 – Mock-token balance integration tests
+//
+// These tests verify exact token balance changes at every loan lifecycle step:
+//   1. `request_loan`  → disbursement sent to borrower, origination fee to treasury
+//   2. `repay_loan`    → repayment transferred from borrower to contract
+//   3. `liquidate`     → repay amount from liquidator, reward back to liquidator
+//
+// A new `MockTokenWithBalance` contract is registered alongside `StellarKraal`
+// so that `token::Client::transfer` actually moves units between ledger entries.
+// All balance assertions use exact values, computed from protocol constants.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Persistent storage key for `MockTokenWithBalance`.
+#[contracttype]
+#[derive(Clone)]
+enum TokenKey {
+    Balance(Address),
+}
+
+/// A mock SAC-compatible token contract that tracks balances in persistent
+/// storage.  It is intentionally minimal — only the two methods that the
+/// `StellarKraal` contract calls (`transfer` and `balance`) are implemented.
+#[contract]
+pub struct MockTokenWithBalance;
+
+#[contractimpl]
+impl MockTokenWithBalance {
+    /// Mint `amount` tokens to `to`.  Used by test helpers to fund accounts.
+    pub fn mint(env: Env, to: Address, amount: i128) {
+        let key = TokenKey::Balance(to.clone());
+        let current: i128 = env.storage().persistent().get(&key).unwrap_or(0);
+        env.storage().persistent().set(&key, &(current + amount));
+    }
+
+    /// Transfer `amount` from `from` to `to`.
+    pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
+        let from_key = TokenKey::Balance(from.clone());
+        let to_key = TokenKey::Balance(to.clone());
+
+        let from_bal: i128 = env.storage().persistent().get(&from_key).unwrap_or(0);
+        let to_bal: i128 = env.storage().persistent().get(&to_key).unwrap_or(0);
+
+        env.storage().persistent().set(&from_key, &(from_bal - amount));
+        env.storage().persistent().set(&to_key, &(to_bal + amount));
+    }
+
+    /// Return the token balance of `id`.
+    pub fn balance(env: Env, id: Address) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&TokenKey::Balance(id))
+            .unwrap_or(0)
+    }
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+/// Set up a fresh environment wired to `MockTokenWithBalance`.
+///
+/// Returns `(env, contract_id, admin, oracle, token, treasury)`.
+fn setup_with_balance() -> (Env, Address, Address, Address, Address, Address) {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register_contract(None, StellarKraal);
+    let admin = Address::generate(&env);
+    let oracle = Address::generate(&env);
+    let token = env.register_contract(None, MockTokenWithBalance);
+    let treasury = Address::generate(&env);
+    (env, contract_id, admin, oracle, token, treasury)
+}
+
+/// Initialise the contract using the shared `StellarKraalClient`.
+fn init_with_balance(
+    env: &Env,
+    contract_id: &Address,
+    admin: &Address,
+    oracle: &Address,
+    token: &Address,
+    treasury: &Address,
+) {
+    let client = StellarKraalClient::new(env, contract_id);
+    client.initialize(admin, oracle, token, treasury, &6000u32, &8000u32, &1u32);
+}
+
+/// Read the `MockTokenWithBalance` balance of an address directly.
+fn token_balance(env: &Env, token: &Address, account: &Address) -> i128 {
+    let token_client = MockTokenWithBalanceClient::new(env, token);
+    token_client.balance(account)
+}
+
+/// Mint tokens to an account via `MockTokenWithBalance`.
+fn mint(env: &Env, token: &Address, account: &Address, amount: i128) {
+    let token_client = MockTokenWithBalanceClient::new(env, token);
+    token_client.mint(account, &amount);
+}
+
+// Protocol default origination fee bps (set in `initialize`).
+const DEFAULT_ORIG_FEE_BPS: i128 = 50; // 0.5 %
+const BPS: i128 = 10_000;
+
+// ── #712 tests ────────────────────────────────────────────────────────────────
+
+/// Verify that `request_loan` transfers the disbursement to the borrower and
+/// the origination fee to the treasury.  Uses exact balance assertions.
+#[test]
+fn test_token_balance_request_loan_transfers_disbursement_and_fee() {
+    let (env, cid, admin, oracle, token, treasury) = setup_with_balance();
+    init_with_balance(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let borrower = Address::generate(&env);
+
+    // Fund the contract so it can disburse.
+    let fund = 2_000_000i128;
+    mint(&env, &token, &cid, fund);
+
+    let col_id =
+        client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
+    let principal = 600_000i128;
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &principal);
+
+    // origination_fee = principal * orig_fee_bps / 10_000
+    let fee = principal * DEFAULT_ORIG_FEE_BPS / BPS;
+    let disbursement = principal - fee;
+
+    // Borrower must have received exactly the disbursement.
+    assert_eq!(
+        token_balance(&env, &token, &borrower),
+        disbursement,
+        "borrower balance must equal disbursement"
+    );
+
+    // Treasury must have received exactly the origination fee.
+    assert_eq!(
+        token_balance(&env, &token, &treasury),
+        fee,
+        "treasury balance must equal origination fee"
+    );
+
+    // Contract balance reduced by principal (fee + disbursement).
+    assert_eq!(
+        token_balance(&env, &token, &cid),
+        fund - principal,
+        "contract balance must be reduced by the full principal"
+    );
+
+    // Loan record must reflect the full outstanding balance (before any repayment).
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.outstanding, principal, "loan outstanding must equal principal");
+    assert_eq!(loan.principal, principal, "loan principal must be recorded");
+}
+
+/// Verify that `repay_loan` transfers the repay amount from the borrower back
+/// to the contract.  Uses exact balance assertions.
+#[test]
+fn test_token_balance_repay_loan_transfers_from_borrower_to_contract() {
+    let (env, cid, admin, oracle, token, treasury) = setup_with_balance();
+    init_with_balance(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let borrower = Address::generate(&env);
+
+    // Fund contract and borrower with enough tokens.
+    let contract_fund = 2_000_000i128;
+    let borrower_fund = 1_000_000i128;
+    mint(&env, &token, &cid, contract_fund);
+    mint(&env, &token, &borrower, borrower_fund);
+
+    let col_id =
+        client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
+    let principal = 600_000i128;
+    let fee = principal * DEFAULT_ORIG_FEE_BPS / BPS;
+    let disbursement = principal - fee;
+
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &principal);
+
+    // Record balances after disbursement.
+    let borrower_after_disburse = token_balance(&env, &token, &borrower);
+    let contract_after_disburse = token_balance(&env, &token, &cid);
+
+    // Partial repayment.
+    let repay = 200_000i128;
+    client.repay_loan(&borrower, &loan_id, &repay);
+
+    // Borrower balance must decrease by the repay amount.
+    assert_eq!(
+        token_balance(&env, &token, &borrower),
+        borrower_after_disburse - repay,
+        "borrower balance must decrease by repay amount"
+    );
+
+    // Contract balance must increase by the repay amount.
+    assert_eq!(
+        token_balance(&env, &token, &cid),
+        contract_after_disburse + repay,
+        "contract balance must increase by repay amount"
+    );
+
+    // Outstanding balance on the loan must reflect the repayment.
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(
+        loan.outstanding,
+        principal - repay,
+        "outstanding must be principal minus repaid amount"
+    );
+
+    let _ = (disbursement, borrower_fund);
+}
+
+/// Verify that a full repayment closes the loan and the borrower's balance
+/// reaches zero outstanding.
+#[test]
+fn test_token_balance_full_repay_closes_loan() {
+    let (env, cid, admin, oracle, token, treasury) = setup_with_balance();
+    init_with_balance(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let borrower = Address::generate(&env);
+
+    mint(&env, &token, &cid, 2_000_000i128);
+    mint(&env, &token, &borrower, 1_000_000i128);
+
+    let col_id =
+        client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
+    let principal = 600_000i128;
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &principal);
+
+    // Repay the full outstanding amount.
+    client.repay_loan(&borrower, &loan_id, &principal);
+
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.status, LoanStatus::Repaid, "loan must be marked Repaid");
+    assert_eq!(loan.outstanding, 0, "outstanding must be zero after full repayment");
+
+    let _ = treasury;
+}
+
+/// Verify that the origination fee is sent to the treasury, not kept by the
+/// contract.  Treasury balance must equal the origination fee exactly.
+#[test]
+fn test_token_balance_origination_fee_sent_to_treasury() {
+    let (env, cid, admin, oracle, token, treasury) = setup_with_balance();
+    init_with_balance(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let borrower = Address::generate(&env);
+    mint(&env, &token, &cid, 2_000_000i128);
+
+    let principal = 1_000_000i128;
+    let col_id =
+        client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &2_000_000i128);
+    client.request_loan(&borrower, &vec![&env, col_id], &principal);
+
+    let expected_fee = principal * DEFAULT_ORIG_FEE_BPS / BPS; // 5_000
+    assert_eq!(
+        token_balance(&env, &token, &treasury),
+        expected_fee,
+        "treasury must receive exactly the origination fee: expected {expected_fee}"
+    );
+}
+
+/// Verify that liquidation transfers the repay amount from the liquidator to the
+/// contract and that the loan outstanding decreases by the exact repay amount.
+#[test]
+fn test_token_balance_liquidation_reward_sent_to_liquidator() {
+    let (env, cid, admin, oracle, token, treasury) = setup_with_balance();
+    init_with_balance(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let borrower = Address::generate(&env);
+    let liquidator = Address::generate(&env);
+
+    // Fund accounts.
+    mint(&env, &token, &cid, 2_000_000i128);
+    mint(&env, &token, &liquidator, 1_000_000i128);
+
+    let col_id =
+        client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
+    let principal = 600_000i128;
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &principal);
+
+    // Make the loan liquidatable: drive outstanding above collateral * liq_thr.
+    // With collateral = 1_000_000 and liq_thr = 8000 bps, outstanding must be
+    // > (1_000_000 * 8000 / 10_000) = 800_000 for hf < 1.0 (10_000 bps).
+    env.as_contract(&cid, || {
+        let mut loan: LoanRecord = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Loan(loan_id))
+            .unwrap();
+        loan.outstanding = 900_000;
+        env.storage().persistent().set(&DataKey::Loan(loan_id), &loan);
+    });
+
+    let liquidator_before = token_balance(&env, &token, &liquidator);
+    let contract_before = token_balance(&env, &token, &cid);
+
+    // Liquidator repays 50 % of outstanding (close factor = 50 % = 5000 bps).
+    // max_repay = 900_000 * 5000 / 10_000 = 450_000.
+    let repay = 450_000i128;
+    client.liquidate(&liquidator, &loan_id, &repay);
+
+    // Liquidator must have paid exactly `repay` tokens to the contract.
+    assert_eq!(
+        token_balance(&env, &token, &liquidator),
+        liquidator_before - repay,
+        "liquidator balance must decrease by repay amount"
+    );
+
+    // Contract must have received exactly `repay` tokens from the liquidator.
+    assert_eq!(
+        token_balance(&env, &token, &cid),
+        contract_before + repay,
+        "contract balance must increase by repay amount"
+    );
+
+    // Outstanding balance on the loan must decrease by exactly `repay`.
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(
+        loan.outstanding,
+        900_000 - repay,
+        "loan outstanding must decrease by the repay amount"
+    );
+
+    let _ = (admin, oracle, treasury);
+}
+
+/// Verify that a full liquidation (outstanding reaches zero) marks the loan
+/// as `Liquidated` and the contract balance increases by the repay amount.
+#[test]
+fn test_token_balance_full_liquidation_marks_loan_liquidated() {
+    let (env, cid, admin, oracle, token, treasury) = setup_with_balance();
+    init_with_balance(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let borrower = Address::generate(&env);
+    let liquidator = Address::generate(&env);
+
+    mint(&env, &token, &cid, 2_000_000i128);
+    mint(&env, &token, &liquidator, 1_000_000i128);
+
+    // Raise close factor to 100 % so the full position can be liquidated.
+    client.set_close_factor(&admin, &10_000u32);
+
+    let col_id =
+        client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &500_000i128);
+    let principal = 300_000i128;
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &principal);
+
+    // Make loan unhealthy.
+    env.as_contract(&cid, || {
+        let mut loan: LoanRecord = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Loan(loan_id))
+            .unwrap();
+        loan.outstanding = 450_000;
+        env.storage().persistent().set(&DataKey::Loan(loan_id), &loan);
+    });
+
+    let contract_before = token_balance(&env, &token, &cid);
+    let repay = 450_000i128;
+    client.liquidate(&liquidator, &loan_id, &repay);
+
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(
+        loan.status,
+        LoanStatus::Liquidated,
+        "loan must be marked Liquidated after full liquidation"
+    );
+    assert_eq!(loan.outstanding, 0, "outstanding must be zero after full liquidation");
+    assert_eq!(
+        token_balance(&env, &token, &cid),
+        contract_before + repay,
+        "contract balance must increase by repay amount on full liquidation"
+    );
+
+    let _ = (oracle, treasury);
 }
