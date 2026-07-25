@@ -281,9 +281,18 @@
                     },
                     {
                       "key": {
-                        "symbol": "due_ledger"
+                        "symbol": "hf_history"
                       },
-                      "val": "void"
+                      "val": {
+                        "vec": [
+                          {
+                            "i128": {
+                              "hi": 0,
+                              "lo": 16000
+                            }
+                          }
+                        ]
+                      }
                     },
                     {
                       "key": {

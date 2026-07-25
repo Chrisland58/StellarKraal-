@@ -283,6 +283,49 @@ Emitted by `update_fee_config` after a successful fee parameter change.
 | `new_origination_fee_bps` | `u32` | New origination fee in basis points |
 | `new_interest_fee_bps` | `u32` | New interest fee in basis points |
 
+### `Admin / LiqThrUpd` — liquidation threshold updated
+
+Emitted by `set_liquidation_threshold` after a successful threshold update.
+
+**Topics:** `[symbol_short!("Admin"), symbol_short!("LiqThrUpd")]`
+
+**Data:** `(old_threshold, new_threshold)` as `(u32, u32)`.
+
+| Field | Type | Description |
+|---|---|---|
+| `old_threshold` | `u32` | Previous liquidation threshold in basis points |
+| `new_threshold` | `u32` | New liquidation threshold in basis points |
+
+Only the admin can trigger this event (enforced by `assert_admin` before any storage mutation).
+
+### `Pause / activated` — pause activated
+
+Emitted by `pause` when the contract is successfully paused.
+
+**Topics:** `[symbol_short!("Pause"), symbol_short!("activated")]`
+
+**Data:** `(paused_by, pause_expiry_ledger)` as `(Address, u64)`.
+
+| Field | Type | Description |
+|---|---|---|
+| `paused_by` | `Address` | Admin address that triggered the pause |
+| `pause_expiry_ledger` | `u64` | Ledger timestamp at which the pause auto-expires |
+
+### `Pause / lifted` — pause lifted (manual)
+
+Emitted by `unpause` when the contract is manually unpaused by the admin.
+
+**Topics:** `[symbol_short!("Pause"), symbol_short!("lifted")]`
+
+**Data:** `(lifted_by, was_manual)` as `(Address, bool)`.
+
+| Field | Type | Description |
+|---|---|---|
+| `lifted_by` | `Address` | Admin address that called `unpause` |
+| `was_manual` | `bool` | Always `true` for explicit admin unpause; auto-expiry does not emit this event |
+
+> **Note on auto-expiry**: When the pause expires by time (ledger timestamp ≥ `pause_expiry_ledger`), the contract becomes unpaused automatically via the `is_paused_raw` helper without emitting a `pause_lifted` event. The `pause_lifted` event is only emitted on explicit `unpause` calls.
+
 ## Naming Convention
 
 Topics follow the pattern `(namespace, action)` using `symbol_short!` macros for

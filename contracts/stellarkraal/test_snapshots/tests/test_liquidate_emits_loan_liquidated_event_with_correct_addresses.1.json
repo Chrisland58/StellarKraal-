@@ -194,9 +194,6 @@
                         "symbol": "appraisal_history"
                       },
                       "val": {
-<<<<<<< HEAD
-                        "vec": []
-=======
                         "vec": [
                           {
                             "i128": {
@@ -205,7 +202,6 @@
                             }
                           }
                         ]
->>>>>>> upstream/main
                       }
                     },
                     {
@@ -1396,20 +1392,10 @@
           "v0": {
             "topics": [
               {
-<<<<<<< HEAD
-                "symbol": "loan_liquidated"
-              },
-              {
-                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-              },
-              {
-                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
-=======
                 "symbol": "loan"
               },
               {
                 "symbol": "liquidated"
->>>>>>> upstream/main
               }
             ],
             "data": {
@@ -1418,12 +1404,9 @@
                   "u64": 1
                 },
                 {
-<<<<<<< HEAD
-=======
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
                 },
                 {
->>>>>>> upstream/main
                   "i128": {
                     "hi": 0,
                     "lo": 450000
@@ -1432,10 +1415,6 @@
                 {
                   "i128": {
                     "hi": 0,
-<<<<<<< HEAD
-                    "lo": 500000
-                  }
-=======
                     "lo": 450000
                   }
                 },
@@ -1445,7 +1424,6 @@
                       "symbol": "Active"
                     }
                   ]
->>>>>>> upstream/main
                 }
               ]
             }

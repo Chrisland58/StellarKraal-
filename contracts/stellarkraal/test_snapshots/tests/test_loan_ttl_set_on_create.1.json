@@ -280,9 +280,11 @@
                     },
                     {
                       "key": {
-                        "symbol": "due_ledger"
+                        "symbol": "hf_history"
                       },
-                      "val": "void"
+                      "val": {
+                        "vec": []
+                      }
                     },
                     {
                       "key": {

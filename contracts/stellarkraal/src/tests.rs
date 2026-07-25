@@ -2,7 +2,7 @@ use super::*;
 use soroban_sdk::{
     symbol_short, vec,
     testutils::{storage::Persistent as _, Address as _, Ledger, Events},
-    Address, Env, Symbol, IntoVal,
+    Address, Env, Symbol, IntoVal, TryIntoVal,
 };
 use proptest::prelude::*;
 
@@ -2140,6 +2140,11 @@ fn test_loan_without_deadline_stores_none() {
 
 #[test]
 fn test_get_loan_limits_default() {
+// ── #710: liquidation_threshold_updated event ──────────────────────────
+
+/// set_liquidation_threshold emits old_threshold and new_threshold.
+#[test]
+fn test_set_liquidation_threshold_emits_event_data() {
     let (env, cid, admin, oracle, token, treasury) = setup();
     init(&env, &cid, &admin, &oracle, &token, &treasury);
     let client = StellarKraalClient::new(&env, &cid);
@@ -2344,6 +2349,45 @@ fn test_migrate_storage_idempotent() {
 #[test]
 #[should_panic(expected = "#3")]
 fn test_migrate_storage_non_admin_fails() {
+    // Initial threshold is 8000 (set by init).
+    client.set_liquidation_threshold(&admin, &9000u32);
+
+    let all_events = env.events().all();
+    // Find the LiqThrUpd event.
+    let found = all_events.iter().any(|e| {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 {
+            return false;
+        }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        t0.map(|s| s == symbol_short!("Admin")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("LiqThrUpd")).unwrap_or(false)
+    });
+    assert!(found, "LiqThrUpd event not found");
+
+    // Verify the event data includes old and new threshold.
+    for e in all_events.iter() {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 {
+            continue;
+        }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        if t0.map(|s| s == symbol_short!("Admin")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("LiqThrUpd")).unwrap_or(false)
+        {
+            let data: (u32, u32) = e.2.try_into_val(&env).expect("event data is (old, new)");
+            assert_eq!(data.0, 8000u32, "old threshold should be 8000");
+            assert_eq!(data.1, 9000u32, "new threshold should be 9000");
+        }
+    }
+}
+
+/// Only admin can call set_liquidation_threshold (existing auth check).
+#[test]
+#[should_panic(expected = "#3")]
+fn test_set_liquidation_threshold_non_admin_fails() {
     let (env, cid, admin, oracle, token, treasury) = setup();
     init(&env, &cid, &admin, &oracle, &token, &treasury);
     let client = StellarKraalClient::new(&env, &cid);
@@ -2729,4 +2773,272 @@ fn test_token_balance_full_liquidation_marks_loan_liquidated() {
     );
 
     let _ = (oracle, treasury);
+    client.set_liquidation_threshold(&attacker, &9000u32);
+}
+
+// ── #707: pause_activated and pause_lifted event schemas ───────────────
+
+/// pause emits (Pause, activated) with (paused_by, pause_expiry_ledger).
+#[test]
+fn test_pause_activated_event_data() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    client.pause(&admin);
+
+    let all_events = env.events().all();
+    let found = all_events.iter().any(|e| {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 {
+            return false;
+        }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("activated")).unwrap_or(false)
+    });
+    assert!(found, "pause_activated event not emitted");
+
+    for e in all_events.iter() {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 {
+            continue;
+        }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        if t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("activated")).unwrap_or(false)
+        {
+            let data: (Address, u64) = e.2.try_into_val(&env)
+                .expect("pause_activated data is (paused_by, pause_expiry_ledger)");
+            assert_eq!(data.0, admin, "paused_by must be admin");
+            assert!(data.1 > 0, "pause_expiry_ledger must be positive");
+        }
+    }
+}
+
+/// unpause emits (Pause, lifted) with (lifted_by, was_manual=true).
+#[test]
+fn test_pause_lifted_event_data_manual() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    client.pause(&admin);
+    client.unpause(&admin);
+
+    let all_events = env.events().all();
+    let found = all_events.iter().any(|e| {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 {
+            return false;
+        }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("lifted")).unwrap_or(false)
+    });
+    assert!(found, "pause_lifted event not emitted on manual unpause");
+
+    for e in all_events.iter() {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 {
+            continue;
+        }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        if t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("lifted")).unwrap_or(false)
+        {
+            let data: (Address, bool) = e.2.try_into_val(&env)
+                .expect("pause_lifted data is (lifted_by, was_manual)");
+            assert_eq!(data.0, admin, "lifted_by must be admin");
+            assert!(data.1, "was_manual should be true for manual unpause");
+        }
+    }
+}
+
+/// Auto-expiry: contract auto-unpauses when time advances past expiry.
+/// The pause_activated event is emitted; no pause_lifted event (auto-expiry
+/// is implicit and not emitted by a function call).
+#[test]
+fn test_pause_auto_expiry_no_lifted_event() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    client.set_pause_duration(&admin, &1u64);
+    client.pause(&admin);
+    assert!(client.is_paused());
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += 2;
+    });
+
+    // Auto-expired: no explicit unpause call needed.
+    assert!(!client.is_paused(), "contract should auto-unpause after expiry");
+
+    // Verify pause_activated was emitted (no lifted event since no unpause call).
+    let all_events = env.events().all();
+    let activated_count = all_events.iter().filter(|e| {
+        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
+        if topics.len() < 2 { return false; }
+        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
+        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
+        t0.map(|s| s == symbol_short!("Pause")).unwrap_or(false)
+            && t1.map(|s| s == symbol_short!("activated")).unwrap_or(false)
+    }).count();
+    assert_eq!(activated_count, 1, "exactly one pause_activated event expected");
+}
+
+// ── #709: Store last 5 health factor values per loan ───────────────────
+
+/// health_factor updates hf_history on each call.
+#[test]
+fn test_hf_history_grows_with_each_call() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    // Initially history is empty.
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.hf_history.len(), 0, "history should start empty");
+
+    // After 1st call.
+    client.health_factor(&loan_id);
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.hf_history.len(), 1);
+
+    // After 2nd call.
+    client.health_factor(&loan_id);
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.hf_history.len(), 2);
+}
+
+/// hf_history is capped at 5 entries (oldest evicted).
+#[test]
+fn test_hf_history_capped_at_5() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    // Call health_factor 7 times; history must stay at 5.
+    for _ in 0..7 {
+        client.health_factor(&loan_id);
+    }
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.hf_history.len(), 5, "hf_history must be capped at 5");
+}
+
+/// hf_history stores values in order (newest last).
+#[test]
+fn test_hf_history_ordering() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    client.health_factor(&loan_id);
+    let loan = client.get_loan(&loan_id);
+    let first = loan.hf_history.get(0).unwrap();
+
+    client.health_factor(&loan_id);
+    let loan = client.get_loan(&loan_id);
+    let last = loan.hf_history.get(loan.hf_history.len() - 1).unwrap();
+
+    // Both calls use identical state so values should be equal; the last entry
+    // must be the most recently appended.
+    assert_eq!(first, last, "values should be equal when loan state is unchanged");
+    assert_eq!(loan.hf_history.len(), 2);
+}
+
+/// get_loan returns hf_history.
+#[test]
+fn test_get_loan_returns_hf_history() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
+
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    client.health_factor(&loan_id);
+    client.health_factor(&loan_id);
+    client.health_factor(&loan_id);
+
+    let loan = client.get_loan(&loan_id);
+    assert_eq!(loan.hf_history.len(), 3, "get_loan should include hf_history");
+    for val in loan.hf_history.iter() {
+        assert!(val > 0, "all hf_history entries should be positive");
+    }
+}
+
+// ── #703: Guard against removing the last oracle ───────────────────────
+
+/// remove_oracle returns OracleRequired when removing the last oracle
+/// while active loans exist.
+#[test]
+fn test_remove_last_oracle_blocked_with_active_loan() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    // Create an active loan.
+    let borrower = Address::generate(&env);
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    // Attempt to remove the only oracle — should fail.
+    let result = client.try_remove_oracle(&admin, &oracle);
+    assert_eq!(result, Err(Ok(Error::OracleRequired)),
+        "removing last oracle with active loans must return OracleRequired (#26)");
+}
+
+/// remove_oracle is allowed when other oracles remain, even with active loans.
+#[test]
+fn test_remove_oracle_allowed_when_other_oracles_remain() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    // Add a second oracle.
+    let oracle2 = Address::generate(&env);
+    client.add_oracle(&admin, &oracle2);
+
+    // Create an active loan.
+    let borrower = Address::generate(&env);
+    let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
+    client.request_loan(&borrower, &vec![&env, col_id], &600_000);
+
+    // Removing one of two oracles must succeed.
+    client.remove_oracle(&admin, &oracle);
+    let remaining = client.get_oracles();
+    assert_eq!(remaining.len(), 1, "one oracle should remain after removal");
+    assert_eq!(remaining.get(0).unwrap(), oracle2);
+}
+
+/// remove_oracle is allowed when no active loans exist (last oracle can go).
+#[test]
+fn test_remove_last_oracle_allowed_no_active_loans() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    // No loans at all — removing the only oracle should succeed.
+    client.remove_oracle(&admin, &oracle);
+    let remaining = client.get_oracles();
+    assert_eq!(remaining.len(), 0, "oracle list should be empty after removal");
 }

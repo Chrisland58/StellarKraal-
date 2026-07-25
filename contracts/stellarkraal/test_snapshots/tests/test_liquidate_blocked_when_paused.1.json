@@ -299,9 +299,11 @@
                     },
                     {
                       "key": {
-                        "symbol": "due_ledger"
+                        "symbol": "hf_history"
                       },
-                      "val": "void"
+                      "val": {
+                        "vec": []
+                      }
                     },
                     {
                       "key": {
@@ -1354,10 +1356,20 @@
             "topics": [
               {
                 "symbol": "Pause"
+              },
+              {
+                "symbol": "activated"
               }
             ],
             "data": {
-              "u64": 86400
+              "vec": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "u64": 86400
+                }
+              ]
             }
           }
         }
