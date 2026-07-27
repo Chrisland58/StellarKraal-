@@ -71,7 +71,10 @@ This project uses [release-please](https://github.com/googleapis/release-please)
 
 ### Manual steps (none required for normal releases)
 
-If you need to cut a release manually, merge the open Release PR created by release-please. Do **not** manually edit `CHANGELOG.md` — it is auto-generated.
+If you need to cut a release manually, merge the open Release PR created by release-please. Do **not** manually edit the versioned release headers in `CHANGELOG.md` — those are auto-generated.
+
+When your PR changes user-facing behavior, add a bullet to the `[Unreleased]` section
+yourself following [docs/guides/changelog.md](docs/guides/changelog.md).
 
 ---
 

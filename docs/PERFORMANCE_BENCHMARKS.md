@@ -11,6 +11,10 @@ Each benchmark:
 
 CI fails automatically if any benchmark exceeds the limit.
 
+> These are on-chain CPU-budget benchmarks. To load test the deployed backend/frontend
+> against a live (e.g. staging) environment, see
+> [docs/guides/load-testing.md](guides/load-testing.md).
+
 ---
 
 ## Results
