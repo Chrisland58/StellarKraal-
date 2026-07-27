@@ -114,6 +114,20 @@ Remove any packages flagged as unused before opening a PR. This keeps install ti
 
 ---
 
+## Reviewer Checklist
+
+Before approving a pull request, reviewers should confirm:
+
+- [ ] PR title and commits follow Conventional Commits
+- [ ] Change is scoped to the linked issue (no unrelated diffs)
+- [ ] Frontend changes respect the design token system and pass light/dark mode checks
+- [ ] Backend changes include input validation at API boundaries
+- [ ] Soroban contract changes preserve backward-compatible ABI, or document a migration path
+- [ ] New/changed logic has corresponding tests (Jest, backend, or `cargo test` as applicable)
+- [ ] No secrets, private keys, or credentials are hardcoded
+- [ ] Docs updated if behavior, setup, or environment variables changed
+- [ ] CI is green
+
 ## Reporting Issues
 
 - **Bugs**: Open a [GitHub issue](https://github.com/teslims2/StellarKraal-/issues/new?template=bug_report.md).

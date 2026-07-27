@@ -68,6 +68,30 @@ cargo build --target wasm32-unknown-unknown --release
 cargo test
 ```
 
+### Local Soroban Sandbox
+
+To test the contract end-to-end against a local network instead of testnet:
+
+```bash
+# Start a local Soroban network (requires Docker)
+stellar network start local
+
+# Add the local network alias if not already configured
+stellar network add local --rpc-url http://localhost:8000/soroban/rpc --network-passphrase "Standalone Network ; February 2017"
+
+# Create and fund an identity for deployments
+stellar keys generate dev-deployer --network local
+stellar keys fund dev-deployer --network local
+
+# Deploy the built contract and capture the resulting contract id
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/stellarkraal.wasm \
+  --source dev-deployer \
+  --network local
+```
+
+Use the printed contract id as `CONTRACT_ID` and `http://localhost:8000/soroban/rpc` as `STELLAR_RPC_URL` in your backend `.env` when testing against the local sandbox.
+
 ---
 
 ## 3. Backend Setup

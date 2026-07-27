@@ -63,6 +63,60 @@ Trigger a new workflow run (push a commit or use **Actions → Re-run**). The ne
 
 Run the relevant CI workflow and confirm it passes. Check that no secret values appear in the workflow logs — GitHub automatically masks registered secrets, but verify manually if in doubt.
 
+## Per-Secret Rotation Instructions
+
+### JWT_SECRET
+1. Generate a new value: `openssl rand -base64 48`.
+2. Update the `JWT_SECRET` GitHub secret (see step 2 above) for `production` and, separately, the `staging` environment.
+3. Deploy so the new value is picked up.
+4. All existing JWTs become invalid — users must log in again. Announce the maintenance window before rotating in production.
+
+### CONTRACT_ID / RPC_URL
+1. Deploy or redeploy the Soroban contract to the target network.
+2. Update `CONTRACT_ID` (and `RPC_URL` if the RPC endpoint changed) in the GitHub secrets for the affected environment.
+3. Update the corresponding local `.env` values (`STELLAR_RPC_URL`, contract id) for anyone running the app locally, per `.env.example`.
+4. Redeploy frontend/backend so they read the new contract id.
+
+### NEXT_PUBLIC_NETWORK / NEXT_PUBLIC_API_URL
+1. Update the GitHub secret value.
+2. Re-run the `frontend-ci` and `deploy` workflows so the build picks up the new public env values (these are baked in at build time, so a redeploy is required, not just a runtime restart).
+
+### WEBHOOK_SECRET
+1. Generate a new value: `openssl rand -base64 48`.
+2. Update the `WEBHOOK_SECRET` GitHub secret.
+3. Update the matching secret on the webhook provider side (e.g., GitHub webhook settings) **before** deploying, so both sides agree during the cutover.
+4. Deploy, then send a test webhook event to confirm HMAC validation succeeds.
+
+### ADMIN_API_KEY
+1. Generate a new value: `openssl rand -base64 48`.
+2. Update the `ADMIN_API_KEY` GitHub secret.
+3. Deploy.
+4. Distribute the new key to authorized admins via a secure channel (not Slack/email in plaintext).
+5. Confirm the old key no longer authenticates against the admin endpoints.
+
+### SLACK_WEBHOOK_URL
+1. In Slack, regenerate/create a new incoming webhook URL for the alerts channel.
+2. Update the `SLACK_WEBHOOK_URL` GitHub secret.
+3. Delete the old webhook in Slack's app configuration.
+4. Trigger a test alert to confirm delivery.
+
+### PAGERDUTY_ROUTING_KEY
+1. In PagerDuty, generate a new Events API v2 integration key on the relevant service.
+2. Update the `PAGERDUTY_ROUTING_KEY` GitHub secret.
+3. Remove the old integration key from the PagerDuty service.
+4. Trigger a low-priority test event to confirm routing.
+
+### AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+1. In the AWS IAM console, create a new access key for the same IAM user/role.
+2. Update both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub secrets together (they must match).
+3. Run `terraform plan` in CI to confirm the new credentials authenticate correctly.
+4. Deactivate (not delete) the old access key in IAM, then delete it after confirming no failures for 24 hours.
+
+### LHCI_GITHUB_APP_TOKEN
+1. Regenerate the token from the Lighthouse CI GitHub App installation settings.
+2. Update the `LHCI_GITHUB_APP_TOKEN` GitHub secret.
+3. Re-run `frontend-ci` to confirm Lighthouse CI reporting still works.
+
 ## Emergency Rotation (Suspected Compromise)
 
 1. Immediately rotate the compromised secret following steps 1–3 above.
