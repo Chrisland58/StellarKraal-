@@ -2,6 +2,8 @@
 
 This document provides information about the StellarKraal staging environment.
 
+> **Deployment how-to:** Step-by-step staging deploy, secrets, rollback, and verification are documented in **[docs/deployment/staging-deployment.md](docs/deployment/staging-deployment.md)**.
+
 ## Overview
 
 The staging environment is a mirror of the production environment used for final testing and validation before deployment to production.
