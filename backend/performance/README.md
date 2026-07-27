@@ -138,3 +138,7 @@ Run tests multiple times and compare trends.
 4. **Test in isolation** (no other load on the system)
 5. **Document changes** when updating baselines
 6. **Monitor trends** over time, not just single runs
+
+## See Also
+
+- [Performance Tuning Guide](../../docs/performance-tuning.md) — environment variables, DB tuning, caching, and profiling
