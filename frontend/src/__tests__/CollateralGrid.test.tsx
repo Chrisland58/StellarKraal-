@@ -1,7 +1,7 @@
 /**
  * Component tests for CollateralGrid.
- * Covers loading, populated, empty, and card click states.
- * Closes #362
+ * Covers loading, populated, empty, card click, and health indicator states.
+ * Closes #362, #779
  */
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -114,6 +114,90 @@ describe("CollateralGrid", () => {
       );
       fireEvent.click(screen.getByText("goat").closest("button")!);
       expect(onCardClick).toHaveBeenCalledWith("col-2");
+    });
+  });
+
+  describe("health indicator (#779)", () => {
+    it("shows green dot for healthy loans (health_factor_bps >= 15000)", () => {
+      const healthy = makeCollateral({
+        id: "col-healthy",
+        animal_type: "cattle",
+        health_factor_bps: 18000,
+      });
+      const { container } = render(
+        <CollateralGrid collaterals={[healthy]} loading={false} onCardClick={jest.fn()} />
+      );
+      const healthDot = container.querySelector('[role="img"][aria-label*="Loan health"]');
+      expect(healthDot).toBeTruthy();
+      const dot = healthDot?.querySelector("div");
+      expect(dot?.style.backgroundColor).toBe("rgb(22, 163, 74)"); // #16A34A green
+    });
+
+    it("shows yellow dot for moderate loans (health_factor_bps >= 10000 and < 15000)", () => {
+      const moderate = makeCollateral({
+        id: "col-moderate",
+        animal_type: "goat",
+        health_factor_bps: 12000,
+      });
+      const { container } = render(
+        <CollateralGrid collaterals={[moderate]} loading={false} onCardClick={jest.fn()} />
+      );
+      const healthDot = container.querySelector('[role="img"][aria-label*="Loan health"]');
+      expect(healthDot).toBeTruthy();
+      const dot = healthDot?.querySelector("div");
+      expect(dot?.style.backgroundColor).toBe("rgb(217, 119, 6)"); // #D97706 yellow
+    });
+
+    it("shows red dot for at-risk loans (health_factor_bps < 10000)", () => {
+      const atRisk = makeCollateral({
+        id: "col-risk",
+        animal_type: "sheep",
+        health_factor_bps: 9500,
+      });
+      const { container } = render(
+        <CollateralGrid collaterals={[atRisk]} loading={false} onCardClick={jest.fn()} />
+      );
+      const healthDot = container.querySelector('[role="img"][aria-label*="Loan health"]');
+      expect(healthDot).toBeTruthy();
+      const dot = healthDot?.querySelector("div");
+      expect(dot?.style.backgroundColor).toBe("rgb(220, 38, 38)"); // #DC2626 red
+    });
+
+    it("does not show health indicator when collateral is not pledged", () => {
+      const unpledged = makeCollateral({
+        id: "col-unpledged",
+        animal_type: "cattle",
+        health_factor_bps: null,
+      });
+      const { container } = render(
+        <CollateralGrid collaterals={[unpledged]} loading={false} onCardClick={jest.fn()} />
+      );
+      const healthDot = container.querySelector('[role="img"][aria-label*="Loan health"]');
+      expect(healthDot).toBeNull();
+    });
+
+    it("does not show health indicator when health_factor_bps is undefined", () => {
+      const undefined = makeCollateral({
+        id: "col-undefined",
+        animal_type: "cattle",
+      });
+      const { container } = render(
+        <CollateralGrid collaterals={[undefined]} loading={false} onCardClick={jest.fn()} />
+      );
+      const healthDot = container.querySelector('[role="img"][aria-label*="Loan health"]');
+      expect(healthDot).toBeNull();
+    });
+
+    it("shows tooltip with health factor value", () => {
+      const withHealth = makeCollateral({
+        id: "col-tooltip",
+        animal_type: "cattle",
+        health_factor_bps: 15500,
+      });
+      render(
+        <CollateralGrid collaterals={[withHealth]} loading={false} onCardClick={jest.fn()} />
+      );
+      expect(screen.getByText("Loan health: 1.55")).toBeTruthy();
     });
   });
 });

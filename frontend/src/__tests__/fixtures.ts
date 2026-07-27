@@ -16,6 +16,7 @@ export interface CollateralRecord {
   appraised_value: number;
   createdAt: string;
   deletedAt: string | null;
+  health_factor_bps?: number | null;
 }
 
 export interface LoanRecord {
