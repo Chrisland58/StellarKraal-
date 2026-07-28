@@ -54,8 +54,20 @@ export default function Modal({
 
   const modal = (
     <FocusTrap active={open} focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false }}>
+      {/*
+       * Backdrop: frosted-glass effect (backdrop-blur-sm + semi-transparent dark fill).
+       * Fade-in animation via animate-modal-backdrop (defined in globals.css).
+       * Falls back gracefully when backdrop-filter is unsupported.
+       * prefers-reduced-motion: animation is suppressed via the CSS @media rule.
+       */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        className={[
+          "fixed inset-0 z-50 flex items-center justify-center p-4",
+          // Frosted-glass backdrop — dark tint + blur
+          "bg-black/40 backdrop-blur-sm",
+          // Fade-in animation
+          "animate-modal-backdrop",
+        ].join(" ")}
         aria-modal="true"
         role="dialog"
         aria-labelledby={titleId}
@@ -70,34 +82,45 @@ export default function Modal({
           }
         }}
       >
+        {/*
+         * Panel: fade + scale-up animation via animate-modal-panel.
+         * Starts at 95% scale / opacity 0, resolves to 100% / opacity 1.
+         */}
         <div
-          className={`relative w-full ${sizeClasses[size]} rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]`}
+          className={[
+            "relative w-full flex flex-col max-h-[90vh]",
+            sizeClasses[size],
+            // Base styling
+            "rounded-2xl bg-white dark:bg-brown-800 shadow-2xl",
+            // Entrance animation
+            "animate-modal-panel",
+          ].join(" ")}
           // Prevent clicks inside from closing
           onMouseDown={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-brown-100">
-            <h2 id={titleId} className="text-lg font-bold text-brown-700" tabIndex={-1}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-brown-100 dark:border-brown-700">
+            <h2 id={titleId} className="text-lg font-bold text-brown-700 dark:text-cream-50" tabIndex={-1}>
               {title}
             </h2>
             <button
               onClick={onClose}
               aria-label="Close dialog"
-              className="text-brown-400 hover:text-brown-700 transition text-2xl leading-none focus:outline-none focus:ring-2 focus:ring-gold/40 rounded"
+              className="text-brown-400 hover:text-brown-700 dark:text-brown-300 dark:hover:text-cream-50 transition text-2xl leading-none focus:outline-none focus:ring-2 focus:ring-gold/40 rounded"
             >
               ×
             </button>
           </div>
 
-        {/* Body */}
-        <div className="px-6 py-4 overflow-y-auto flex-1">{children}</div>
+          {/* Body */}
+          <div className="px-6 py-4 overflow-y-auto flex-1">{children}</div>
 
-        {/* Footer */}
-        {footer && (
-          <div className="px-6 py-4 border-t border-brown-100 flex justify-end gap-3">
-            {footer}
-          </div>
-        )}
+          {/* Footer */}
+          {footer && (
+            <div className="px-6 py-4 border-t border-brown-100 dark:border-brown-700 flex justify-end gap-3">
+              {footer}
+            </div>
+          )}
         </div>
       </div>
     </FocusTrap>

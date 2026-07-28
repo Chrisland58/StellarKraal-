@@ -16,6 +16,7 @@ module.exports = {
       },
       // ── Typography scale (#298) ──────────────────────────────────────────────
       fontSize: {
+        // Static (non-fluid) sizes — used directly via Tailwind utilities
         "heading-1": ["2.25rem", { lineHeight: "2.5rem", fontWeight: "700" }],
         "heading-2": ["1.875rem", { lineHeight: "2.25rem", fontWeight: "700" }],
         "heading-3": ["1.5rem", { lineHeight: "2rem", fontWeight: "600" }],
@@ -25,6 +26,18 @@ module.exports = {
         "body-sm": ["0.875rem", { lineHeight: "1.25rem", fontWeight: "400" }],
         caption: ["0.75rem", { lineHeight: "1rem", fontWeight: "400" }],
         label: ["0.875rem", { lineHeight: "1.25rem", fontWeight: "500" }],
+        // Fluid responsive sizes — clamp(min, preferred, max)
+        // min: mobile, preferred: viewport-relative, max: desktop
+        // h1: 1.75rem → 2.25rem at 1280px
+        "fluid-h1": ["clamp(1.75rem, 4vw + 0.5rem, 2.75rem)", { lineHeight: "1.15", fontWeight: "700" }],
+        // h2: 1.375rem → 1.875rem
+        "fluid-h2": ["clamp(1.375rem, 3vw + 0.5rem, 2.25rem)", { lineHeight: "1.2", fontWeight: "700" }],
+        // h3: 1.125rem → 1.5rem
+        "fluid-h3": ["clamp(1.125rem, 2.5vw + 0.25rem, 1.75rem)", { lineHeight: "1.3", fontWeight: "600" }],
+        // h4: 1rem → 1.25rem
+        "fluid-h4": ["clamp(1rem, 1.5vw + 0.25rem, 1.375rem)", { lineHeight: "1.4", fontWeight: "600" }],
+        // body: 0.9375rem → 1rem
+        "fluid-body": ["clamp(0.9375rem, 1vw + 0.25rem, 1.0625rem)", { lineHeight: "1.6", fontWeight: "400" }],
       },
       colors: {
         // ── Semantic design tokens (#297) ────────────────────────────────────

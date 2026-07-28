@@ -34,13 +34,39 @@ export function Label({ children, required, className = "", ...props }: LabelPro
 export function FieldError({ id, message }: { id?: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="mt-1 text-xs text-error-dark">
+    <p id={id} role="alert" className="mt-1 text-xs text-error-dark flex items-center gap-1">
+      {/* Error icon — purely decorative, aria-hidden so screen readers read the text only */}
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        className="shrink-0 text-error"
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="currentColor"
+      >
+        <path d="M6 0a6 6 0 1 0 0 12A6 6 0 0 0 6 0Zm.75 8.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM6 3a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5A.75.75 0 0 1 6 3Z" />
+      </svg>
       {message}
     </p>
   );
 }
 
 // ── Input ────────────────────────────────────────────────────────────────────
+
+/** Inline error indicator shown inside the input on the trailing edge */
+function InputErrorIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-error"
+    >
+      <svg width="16" height="16" viewBox="0 0 12 12" fill="currentColor">
+        <path d="M6 0a6 6 0 1 0 0 12A6 6 0 0 0 6 0Zm.75 8.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM6 3a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5A.75.75 0 0 1 6 3Z" />
+      </svg>
+    </span>
+  );
+}
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -62,15 +88,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {label}
         </Label>
       )}
-      <input
-        ref={ref}
-        id={id}
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
-        required={required}
-        className={`${inputBase} ${error ? inputError : inputIdle} ${className}`}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          ref={ref}
+          id={id}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+          required={required}
+          className={`${inputBase} ${error ? inputError : inputIdle} ${error ? "pr-9" : ""} ${className}`}
+          {...props}
+        />
+        {error && <InputErrorIcon />}
+      </div>
       <FieldError id={errorId} message={error} />
     </div>
   );
@@ -98,15 +127,27 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
           {label}
         </Label>
       )}
-      <textarea
-        ref={ref}
-        id={id}
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
-        required={required}
-        className={`${inputBase} ${error ? inputError : inputIdle} resize-y min-h-[6rem] ${className}`}
-        {...props}
-      />
+      <div className="relative">
+        <textarea
+          ref={ref}
+          id={id}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+          required={required}
+          className={`${inputBase} ${error ? inputError : inputIdle} resize-y min-h-[6rem] ${error ? "pr-9" : ""} ${className}`}
+          {...props}
+        />
+        {error && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-3 right-3 text-error"
+          >
+            <svg width="16" height="16" viewBox="0 0 12 12" fill="currentColor">
+              <path d="M6 0a6 6 0 1 0 0 12A6 6 0 0 0 6 0Zm.75 8.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM6 3a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5A.75.75 0 0 1 6 3Z" />
+            </svg>
+          </span>
+        )}
+      </div>
       <FieldError id={errorId} message={error} />
     </div>
   );
@@ -134,17 +175,29 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           {label}
         </Label>
       )}
-      <select
-        ref={ref}
-        id={id}
-        aria-invalid={!!error}
-        aria-describedby={error ? errorId : undefined}
-        required={required}
-        className={`${inputBase} ${error ? inputError : inputIdle} appearance-none bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235D3C15' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_1rem_center] pr-10 ${className}`}
-        {...props}
-      >
-        {children}
-      </select>
+      <div className="relative">
+        <select
+          ref={ref}
+          id={id}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+          required={required}
+          className={`${inputBase} ${error ? inputError : inputIdle} appearance-none bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235D3C15' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_1rem_center] ${error ? "pr-16" : "pr-10"} ${className}`}
+          {...props}
+        >
+          {children}
+        </select>
+        {error && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-8 flex items-center text-error"
+          >
+            <svg width="16" height="16" viewBox="0 0 12 12" fill="currentColor">
+              <path d="M6 0a6 6 0 1 0 0 12A6 6 0 0 0 6 0Zm.75 8.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM6 3a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5A.75.75 0 0 1 6 3Z" />
+            </svg>
+          </span>
+        )}
+      </div>
       <FieldError id={errorId} message={error} />
     </div>
   );

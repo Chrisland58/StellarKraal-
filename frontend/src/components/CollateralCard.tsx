@@ -32,7 +32,18 @@ export default function CollateralCard(_props: { walletAddress: string }) {
 
   return (
     <Card
-      className="mb-4"
+      className={[
+        "mb-4",
+        // Hover state: subtle lift with shadow and border brightening
+        "transition-all duration-200 ease-in-out",
+        "hover:shadow-lg hover:-translate-y-0.5",
+        // Pressed / active state: slight push-down
+        "active:scale-[0.99] active:shadow-md active:translate-y-0",
+        // Keyboard-focus ring using design token colours
+        "focus-within:ring-2 focus-within:ring-gold/50 focus-within:ring-offset-2",
+        // Dark-mode hover tint
+        "dark:hover:border-brown-500",
+      ].join(" ")}
       header={<h2 className={`text-xl font-semibold ${colors.text.primary}`}>Loan Lookup</h2>}
     >
       <div className="flex gap-2">
