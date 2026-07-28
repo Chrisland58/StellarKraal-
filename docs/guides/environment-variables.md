@@ -129,6 +129,46 @@ openssl rand -hex 32
 
 Rotate this secret by updating the value and redeploying — all existing tokens will be immediately invalidated.
 
+### `ACCESS_TTL_MS`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Positive integer (milliseconds) |
+| Default | `900000` (15 minutes) |
+
+Time-to-live for JWT access tokens. Access tokens are short-lived and must be refreshed via `/api/v1/auth/refresh` before expiry. Set this lower (e.g., `300000` for 5 minutes) for tighter security; set it higher (e.g., `3600000` for 1 hour) for better UX in low-risk environments.
+
+### `REFRESH_TTL_MS`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Positive integer (milliseconds) |
+| Default | `604800000` (7 days) |
+
+Time-to-live for refresh tokens. Refresh tokens are stored as HTTP-only cookies and can be used to obtain new access tokens without re-authenticating. Set this to a shorter duration (e.g., `86400000` for 1 day) if you need tighter session control.
+
+### `HEALTH_FACTOR_WARN`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Positive integer (×10_000) |
+| Default | `13000` (1.3) |
+
+Health factor threshold below which a warning-level alert is fired. The health factor is calculated as `(collateral_value × liquidation_threshold_bps) / (loan_amount × 10_000)`. A health factor of 1.3 means the loan is 30% overcollateralized. When it drops below this threshold, a warning is sent to Slack and the on-call team to give the borrower time to add collateral or repay.
+
+### `HEALTH_FACTOR_CRIT`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Positive integer (×10_000) |
+| Default | `10000` (1.0) |
+
+Critical health factor threshold below which a loan becomes eligible for liquidation. A health factor of 1.0 means the loan is exactly at the liquidation boundary. When it drops below this value, a critical alert is sent to PagerDuty and the liquidation bot should trigger liquidation.
+
 ### `WEBHOOK_SECRET`
 
 | | |
@@ -176,8 +216,9 @@ Increase these values if legitimate traffic is being throttled. Decrease them fo
 |---|---|---|
 | `TIMEOUT_GLOBAL_MS` | `30000` | Maximum milliseconds for any request before a 408 is returned |
 | `TIMEOUT_WRITE_MS` | `15000` | Maximum milliseconds for write operations (loan origination, collateral updates) |
+| `TIMEOUT_CONTRACT_MS` | `30000` | Maximum milliseconds for Soroban contract submission routes (loan request, repay, liquidate) |
 
-Values are in milliseconds. Increase `TIMEOUT_WRITE_MS` if Soroban transaction submission is slow on your network.
+Values are in milliseconds. `TIMEOUT_CONTRACT_MS` is deliberately higher than `TIMEOUT_WRITE_MS` to account for Soroban RPC latency. Increase it if contract submissions are timing out on your network.
 
 ### RPC Connection Pool
 
@@ -197,6 +238,46 @@ Values are in milliseconds. Increase `TIMEOUT_WRITE_MS` if Soroban transaction s
 | Default | `300000` (5 minutes) |
 
 How long collateral appraisal results are cached in memory before a fresh RPC call is made. Increase this to reduce RPC traffic; decrease it if you need near-real-time price accuracy for liquidation decisions.
+
+### `ORIG_FEE_BPS`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Positive integer (basis points) |
+| Default | `50` (0.5%) |
+
+Origination fee charged on each new loan, expressed in basis points. 50 bps = 0.5%. The contract enforces a hard maximum of 500 bps (5%); setting a higher value will cause the contract to return error #10. Change this with the admin function `set_origination_fee(admin, fee_bps)` on the contract — the backend reads it from config on startup only for display/validation purposes.
+
+### `SHUTDOWN_TIMEOUT_MS`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Positive integer (milliseconds), minimum 1000 |
+| Default | `10000` (10 seconds) |
+
+Maximum time the server waits for in-flight requests to complete after receiving `SIGTERM` or `SIGINT`. During this window the server stops accepting new connections but continues serving existing requests. After this timeout, the process exits forcefully. Set this higher (e.g., `30000`) if your Soroban contract calls typically take longer than 10 seconds under load.
+
+### `AUDIT_LOG_DIR`
+
+| | |
+|---|---|
+| Required | No |
+| Format | Absolute or relative filesystem path |
+| Default | — (audit logging disabled when unset) |
+
+Directory where structured audit log files are written. Each audit event (admin actions, loan state changes, authentication events) is appended as a JSON line. Ensure the backend process has write access to this directory. In production, use an absolute path (e.g., `/var/log/stellarkraal/audit`).
+
+### `DATABASE_URL`
+
+| | |
+|---|---|
+| Required | No (production: recommended) |
+| Format | `postgresql://user:password@host:5432/dbname` or `sqlite:/path/to/db` |
+| GitHub Secret | `DATABASE_URL` |
+
+PostgreSQL connection URL for staging and production. When unset, the backend falls back to SQLite (local development only). In production, always set this to a PostgreSQL URL. The value must start with `postgres://`, `postgresql://`, or `sqlite:`.
 
 ---
 
@@ -248,7 +329,10 @@ Base URL prepended to runbook paths in alert messages. Override this if you host
 | `PORT` | Backend | No | `3001` |
 | `NODE_ENV` | Backend | No | `development` |
 | `FRONTEND_URL` | Backend | Prod only | `http://localhost:3000` |
+| `ALLOWED_ORIGINS` | Backend | No | — |
 | `JWT_SECRET` | Backend | Prod only | — |
+| `ACCESS_TTL_MS` | Backend | No | `900000` |
+| `REFRESH_TTL_MS` | Backend | No | `604800000` |
 | `WEBHOOK_SECRET` | Backend | No | — |
 | `ADMIN_API_KEY` | Backend | No | — |
 | `RATE_LIMIT_GLOBAL` | Backend | No | `60` |
@@ -257,9 +341,16 @@ Base URL prepended to runbook paths in alert messages. Override this if you host
 | `RATE_LIMIT_WRITE` | Backend | No | `10` |
 | `TIMEOUT_GLOBAL_MS` | Backend | No | `30000` |
 | `TIMEOUT_WRITE_MS` | Backend | No | `15000` |
+| `TIMEOUT_CONTRACT_MS` | Backend | No | `30000` |
+| `ORIG_FEE_BPS` | Backend | No | `50` |
 | `POOL_MIN` | Backend | No | `2` |
 | `POOL_MAX` | Backend | No | `10` |
 | `APPRAISAL_CACHE_TTL_MS` | Backend | No | `300000` |
+| `HEALTH_FACTOR_WARN` | Backend | No | `13000` |
+| `HEALTH_FACTOR_CRIT` | Backend | No | `10000` |
+| `SHUTDOWN_TIMEOUT_MS` | Backend | No | `10000` |
+| `AUDIT_LOG_DIR` | Backend | No | — |
+| `DATABASE_URL` | Backend | Prod only | — (SQLite) |
 | `SLACK_WEBHOOK_URL` | Alerting | No | — |
 | `PAGERDUTY_ROUTING_KEY` | Alerting | No | — |
 | `RUNBOOK_BASE_URL` | Alerting | No | (GitHub URL) |

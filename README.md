@@ -200,6 +200,8 @@ cd backend && npm audit --audit-level=high
 cd frontend && npm audit --audit-level=high
 ```
 
+To report a security vulnerability, please read [SECURITY.md](SECURITY.md) for our full vulnerability disclosure policy, reporting instructions, response timeline, and safe harbour statement.
+
 ## Development Scripts
 
 Run the following from the repository root:
