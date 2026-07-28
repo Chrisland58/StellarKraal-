@@ -261,6 +261,8 @@ npm run test:frontend
 | Document | Description |
 |---|---|
 | [Loan State Machine](docs/protocol/loan-state-machine.md) | All loan states, valid transitions, triggering events, and on-chain event mapping |
+| [API Quickstart](docs/guides/api-quickstart.md) | Base URL, auth flow, and common `/api/v1` operations |
+| [Rate limits](docs/guides/rate-limits.md) | Global, auth, read, and write tiers; headers and retry behavior |
 | [Liquidation Mechanism](docs/protocol/liquidation.md) | Health factor formula, liquidation threshold, partial liquidation examples |
 | [Smart Contract Interface](docs/contracts/stellarkraal-interface.md) | Soroban contract public API, error codes, state changes, and CLI invocation guide |
 | [Contract Event Listener](docs/guides/contract-event-listener.md) | Polling interval, ledger cursor tracking, event handling pipeline, and structured logging |

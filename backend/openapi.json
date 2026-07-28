@@ -3,7 +3,7 @@
   "info": {
     "title": "StellarKraal API",
     "version": "1.0.0",
-    "description": "Livestock-backed micro-lending API on Stellar/Soroban. Write endpoints return an unsigned XDR transaction the client must sign with Freighter and submit to the Stellar network."
+    "description": "Livestock-backed micro-lending API on Stellar/Soroban. Write endpoints return an unsigned XDR transaction the client must sign with Freighter and submit to the Stellar network.\n\n**Rate limits:** Per-IP limits apply (global, auth, and write tiers). See the [rate limits guide](../docs/guides/rate-limits.md) for limits, headers, and retry behavior. See also the [API quickstart](../docs/guides/api-quickstart.md)."
   },
   "servers": [
     { "url": "/api/v1", "description": "Versioned API" },
