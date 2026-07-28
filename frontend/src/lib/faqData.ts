@@ -11,63 +11,211 @@ export interface FaqCategory {
 
 export const FAQ_CATEGORIES: FaqCategory[] = [
   {
-    id: "wallet",
-    label: "Wallet",
+    id: 'eligibility',
+    label: 'Eligibility',
     items: [
-      { q: "Which wallet do I need to use StellarKraal?", a: "You need the Freighter browser extension. It is free, open-source, and works with Chrome, Firefox, and Brave." },
-      { q: "How do I connect my wallet?", a: 'Click "Connect Wallet" on any page. Freighter will ask you to approve the connection. Once approved, your Stellar public key appears in the app.' },
-      { q: "Is my private key ever shared with StellarKraal?", a: "No. Freighter signs transactions locally in your browser. StellarKraal never sees your private key." },
-      { q: "What network should my wallet be set to?", a: "Use Testnet for testing and Mainnet for real transactions. The app reads NEXT_PUBLIC_NETWORK from its configuration." },
-      { q: "Why does my wallet show a different balance than expected?", a: "Balances are fetched from the Stellar network in real time. If you just made a transaction, wait a few seconds and refresh the page." },
-      { q: "Can I use multiple wallets?", a: "You can disconnect and reconnect with a different Freighter account. Each wallet address has its own collateral and loan records." },
+      {
+        q: 'Who can borrow on StellarKraal?',
+        a: 'Any Stellar account holder who can sign transactions with Freighter and register eligible livestock as collateral. You must complete on-chain registration before requesting a loan.',
+      },
+      {
+        q: 'Do I need a special account to get started?',
+        a: 'You need the Freighter browser extension and a funded Stellar account on the same network the app uses (Testnet for testing, Mainnet for production). Create or import a wallet in Freighter, then click Connect Wallet in the app.',
+      },
+      {
+        q: 'Can I borrow without registering collateral?',
+        a: 'No. Loans are backed by livestock you register on-chain first. The Borrow flow walks you through collateral registration, then loan request.',
+      },
+      {
+        q: 'Are there geographic restrictions?',
+        a: 'The protocol is open on-chain, but you are responsible for complying with local laws for livestock ownership and lending. The app does not verify your location.',
+      },
     ],
   },
   {
-    id: "loans",
-    label: "Loans",
+    id: 'collateral',
+    label: 'Collateral',
     items: [
-      { q: "How do I apply for a loan?", a: "Go to Borrow, connect your wallet, register your livestock as collateral, then request a loan amount up to the allowed collateral ratio." },
-      { q: "What is the maximum loan amount I can request?", a: "The maximum is determined by your collateral's appraised value and the protocol's loan-to-value (LTV) ratio set by the administrator." },
-      { q: "How is interest calculated?", a: "Interest accrues on the outstanding principal at the rate configured in the smart contract. The Loan Repayment Calculator shows a breakdown before you repay." },
-      { q: "Can I repay a loan partially?", a: "Yes. Enter any amount up to the full outstanding balance in the Repay panel. Partial repayments reduce your principal and improve your health factor." },
-      { q: "What happens if I miss a repayment?", a: "There is no fixed repayment schedule, but if your health factor drops below 1.0 due to collateral value changes, your position may be liquidated." },
-      { q: "How do I find my Loan ID?", a: 'Your Loan ID is shown after a successful loan request. You can also look it up in the Dashboard\'s "Loan Lookup" panel using your collateral ID.' },
+      {
+        q: 'What animals can I register as collateral?',
+        a: 'Cattle, goats, and sheep are supported animal types in the registration form. Choose the type that matches your herd when you register.',
+      },
+      {
+        q: 'How is my livestock appraised?',
+        a: 'You enter an appraised value when registering. Oracle price updates can refresh valuations over time; the protocol uses collateral value when checking loan health.',
+      },
+      {
+        q: 'Can I register multiple animals in one transaction?',
+        a: 'Yes. Set the Count field to the number of animals. They are stored as one collateral record with a combined appraised value.',
+      },
+      {
+        q: 'Can I use more than one collateral record for a loan?',
+        a: 'The API supports requesting a loan against multiple collateral IDs in one request. In the app, register each herd separately, then include the IDs you need when borrowing.',
+      },
+      {
+        q: 'Can I update or remove my collateral?',
+        a: 'Collateral linked to an active loan cannot be removed. After you fully repay the loan, the collateral can be released.',
+      },
+      {
+        q: 'What is a collateral ID?',
+        a: 'A unique on-chain identifier assigned when you register. Save it—you need it to request a loan and to look up your position on the Dashboard.',
+      },
     ],
   },
   {
-    id: "collateral",
-    label: "Collateral",
+    id: 'loan-limits',
+    label: 'Loan Limits',
     items: [
-      { q: "What animals can I register as collateral?", a: "Cattle, goats, and sheep are currently supported." },
-      { q: "How is my livestock appraised?", a: "You provide the appraised value when registering. In production, an authorised oracle verifies the value before the collateral is accepted." },
-      { q: "Can I register multiple animals in one transaction?", a: "Yes. Set the Count field to the number of animals. They are registered as a single collateral record with a combined appraised value." },
-      { q: "Can I update or remove my collateral?", a: "Collateral tied to an active loan cannot be removed. Once the loan is fully repaid, the collateral record can be released." },
-      { q: "What is a collateral ID?", a: "A unique on-chain identifier assigned when you register collateral. Keep it safe — you need it to request a loan and to look up your position." },
-      { q: "What happens to my collateral if I repay the loan in full?", a: "The collateral is released and your health factor is no longer tracked for that position." },
+      {
+        q: 'What is the maximum I can borrow?',
+        a: 'By default you can borrow up to about 60% of your collateral’s appraised value (loan-to-value ratio). The exact cap is enforced by the smart contract when you submit a loan request.',
+      },
+      {
+        q: 'What happens if I ask for more than the limit?',
+        a: 'The contract rejects the request. Lower the amount or register additional collateral with a higher total appraised value.',
+      },
+      {
+        q: 'Is there a minimum loan amount?',
+        a: 'The amount must be a positive number. Very small loans may not be practical after network fees; use an amount that makes sense for your herd and fees.',
+      },
+      {
+        q: 'Is there an origination fee?',
+        a: 'Yes. A small origination fee (0.5% by default) is deducted when the loan is created. You receive the loan amount minus that fee.',
+      },
     ],
   },
   {
-    id: "liquidation",
-    label: "Liquidation",
+    id: 'interest-rates',
+    label: 'Interest Rates',
     items: [
-      { q: "What is liquidation?", a: "If your health factor falls below 1.0, a liquidator can repay part of your loan and claim a portion of your collateral as a reward." },
-      { q: "How is the health factor calculated?", a: "Health Factor = (Collateral Value × Liquidation Threshold) ÷ Outstanding Loan. A value above 1.0 means your position is safe." },
-      { q: "How do I avoid liquidation?", a: "Monitor your health factor on the Dashboard. If it approaches 1.0, repay part of your loan or add more collateral." },
-      { q: "Can I recover my collateral after liquidation?", a: "Only the portion not claimed by the liquidator remains. If the full collateral was seized, it cannot be recovered." },
-      { q: "Who can liquidate my position?", a: "Any address can call the liquidation function when your health factor is below 1.0. This is a permissionless mechanism." },
-      { q: "Will I be notified before liquidation?", a: "The app shows a warning when your health factor drops below a safe threshold. There is no off-chain notification system yet." },
+      {
+        q: 'How is my interest rate determined?',
+        a: 'The protocol uses a utilization-based model: rates move with how much of the pool is borrowed. When utilization is low, rates tend to be lower; when utilization is high, rates increase to encourage repayment.',
+      },
+      {
+        q: 'Will my rate change after I take a loan?',
+        a: 'Interest accrues on your outstanding balance according to the contract rules. Market utilization can change over time, which affects how interest builds on open loans.',
+      },
+      {
+        q: 'Are there fees when I repay?',
+        a: 'A fee applies to the interest portion of your repayment (10% by default). Principal repayment is not subject to that interest fee.',
+      },
+      {
+        q: 'Where can I see fees before I repay?',
+        a: 'Use the Loan Repayment Calculator on the Dashboard or the repayment preview API to see principal, interest, fees, and remaining balance before you sign a transaction.',
+      },
     ],
   },
   {
-    id: "technical",
-    label: "Technical",
+    id: 'repayment',
+    label: 'Repayment',
     items: [
-      { q: "Which blockchain does StellarKraal run on?", a: "Stellar, using Soroban smart contracts deployed on Stellar Testnet for testing and Mainnet for production." },
-      { q: "Where can I see the smart contract source code?", a: "The contract is in contracts/stellarkraal/src/lib.rs in this repository and is open-source under the MIT licence." },
-      { q: "How do I report a bug or security issue?", a: "Open a GitHub issue for bugs. For security vulnerabilities, please follow the responsible disclosure process described in SECURITY.md." },
-      { q: "How do I recover a lost transaction?", a: "See docs/recovery/restore-procedure.md for step-by-step recovery instructions." },
-      { q: "What does 'stroops' mean?", a: "A stroop is the smallest unit of XLM. 1 XLM = 10,000,000 stroops. Some fields in the app accept stroops directly." },
-      { q: "Is there an API I can integrate with?", a: "Yes. The backend exposes a REST API documented in the project README. All endpoints are under /api/v1/." },
+      {
+        q: 'How do I repay my loan?',
+        a: 'Open the Repay panel on the Dashboard, enter the amount, and sign the transaction in Freighter. Repayments are submitted on-chain like other actions.',
+      },
+      {
+        q: 'Can I repay partially?',
+        a: 'Yes. Pay any amount up to your full outstanding balance. Partial payments reduce debt and usually improve your health factor.',
+      },
+      {
+        q: 'Is there a fixed payment schedule?',
+        a: 'No mandatory monthly schedule. You choose when to repay. If collateral value falls, your health factor can drop and liquidation risk increases even without missed calendar payments.',
+      },
+      {
+        q: 'How do I find my Loan ID?',
+        a: 'It is shown after a successful loan request. You can also use the Dashboard Loan Lookup with your collateral ID.',
+      },
+      {
+        q: 'What happens when the loan is fully repaid?',
+        a: 'Outstanding debt goes to zero, the loan is closed, and your collateral is no longer tied to that loan.',
+      },
+    ],
+  },
+  {
+    id: 'liquidation',
+    label: 'Liquidation',
+    items: [
+      {
+        q: 'What is liquidation?',
+        a: 'If your position becomes undercollateralized, a liquidator can repay part of your debt and receive collateral. This protects lenders from bad debt.',
+      },
+      {
+        q: 'How is the health factor calculated?',
+        a: 'The app shows health as a multiple where 1.00 is the danger line. Above 1.00 is healthy; below 1.00 means liquidators may act. It compares collateral value (with a safety threshold) to what you still owe.',
+      },
+      {
+        q: 'How do I avoid liquidation?',
+        a: 'Watch the health gauge on the Dashboard. If it nears 1.00, repay some debt or add collateral before prices move against you.',
+      },
+      {
+        q: 'Can someone liquidate my whole loan at once?',
+        a: 'Liquidations are partial by default (up to half of outstanding debt per call). Multiple liquidations may be needed if the position stays unhealthy.',
+      },
+      {
+        q: 'Who can liquidate my position?',
+        a: 'Anyone can call liquidation when your health factor is below the threshold. The process is permissionless on-chain.',
+      },
+      {
+        q: 'Will I be notified before liquidation?',
+        a: 'The Dashboard warns when health is at risk. You can also review notification preferences on the Settings page; email or push alerts depend on how your deployment is configured.',
+      },
+    ],
+  },
+  {
+    id: 'account',
+    label: 'Account',
+    items: [
+      {
+        q: 'Which wallet do I need?',
+        a: 'Freighter is the supported browser wallet. It is free and works in Chrome, Firefox, and Brave.',
+      },
+      {
+        q: 'How do I connect my wallet?',
+        a: 'Click Connect Wallet. Approve the connection in Freighter. Your public Stellar address then appears in the app.',
+      },
+      {
+        q: 'Is my private key shared with StellarKraal?',
+        a: 'No. Freighter signs transactions locally. The app never receives your secret key.',
+      },
+      {
+        q: 'What network should Freighter use?',
+        a: 'Match the app environment: Testnet for staging and testing, Mainnet for real funds. The app follows NEXT_PUBLIC_NETWORK in its configuration.',
+      },
+      {
+        q: 'Can I switch wallets?',
+        a: 'Disconnect and connect a different Freighter account. Each address has its own collateral and loan history.',
+      },
+      {
+        q: 'Why does my balance look wrong briefly?',
+        a: 'Balances come from the Stellar network. After a transaction, wait a few seconds and refresh.',
+      },
+    ],
+  },
+  {
+    id: 'general',
+    label: 'General',
+    items: [
+      {
+        q: 'Which blockchain does StellarKraal use?',
+        a: 'Stellar with Soroban smart contracts. Testnet is used for staging; production uses Mainnet.',
+      },
+      {
+        q: 'How do I report a bug?',
+        a: 'Open a GitHub issue in the project repository. For security problems, follow the responsible disclosure steps in SECURITY.md.',
+      },
+      {
+        q: 'Is there an API for developers?',
+        a: 'Yes. The backend exposes REST endpoints under /api/v1/. Interactive docs are at /api/docs when the API server is running.',
+      },
+      {
+        q: 'Where is the FAQ in the repository?',
+        a: 'The same content lives in docs/faq.md and in the app at /help/faq.',
+      },
+      {
+        q: 'What does stroops mean?',
+        a: 'The smallest unit of XLM (1 XLM = 10,000,000 stroops). Some technical fields use stroops instead of whole XLM.',
+      },
     ],
   },
 ];
