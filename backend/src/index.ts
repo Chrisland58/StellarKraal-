@@ -1056,6 +1056,63 @@ app.get(
   })
 );
 
+/**
+ * GET /api/v1/admin/stats — platform-wide statistics.
+ *
+ * Returns aggregated platform metrics: total users, loans, collateral, TVL, and active loan count.
+ * Admin-only endpoint with 60-second response cache to avoid expensive aggregations.
+ *
+ * Response: { totalUsers, totalLoans, totalCollateral, totalValueLocked, activeLoansCount }
+ */
+app.get(
+  '/api/v1/admin/stats',
+  createResponseCacheMiddleware(60 * 1000), // 60s cache
+  asyncHandler(async (req: Request, res: Response) => {
+    // Admin-only: require role === "admin" in JWT payload
+    const user = (req as any).user as { publicKey?: string; role?: string } | undefined;
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: admin role required' });
+    }
+
+    // Get all collaterals (non-deleted)
+    const collateralsResult = listCollateral();
+    const collaterals = collateralsResult.data;
+
+    // Get all loans (non-deleted)
+    const loansResult = listLoans();
+    const loans = loansResult.data;
+
+    // Get active loans
+    const activeLoans = listActiveLoans();
+
+    // Aggregate stats
+    const totalCollateral = collateralsResult.total;
+    const totalLoans = loansResult.total;
+    const activeLoansCount = activeLoans.length;
+
+    // Calculate total value locked (sum of collateral appraised values in XLM)
+    const totalValueLockedStroops = collaterals.reduce(
+      (sum, c) => sum + (c.appraised_value || 0),
+      0
+    );
+    const totalValueLocked = parseFloat((totalValueLockedStroops / 1e7).toFixed(2));
+
+    // Count unique users (owners of collaterals or borrowers of loans)
+    const uniqueUsers = new Set<string>();
+    collaterals.forEach((c) => uniqueUsers.add(c.owner));
+    loans.forEach((l) => uniqueUsers.add(l.borrower));
+    const totalUsers = uniqueUsers.size;
+
+    res.json({
+      totalUsers,
+      totalLoans,
+      totalCollateral,
+      totalValueLocked,
+      activeLoansCount,
+    });
+  })
+);
+
 // POST /api/v1/admin/liquidation-check — manually trigger health factor job (#615)
 app.post(
   '/api/v1/admin/liquidation-check',

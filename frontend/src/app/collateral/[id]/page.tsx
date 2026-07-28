@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PriceChart } from "@/components/PriceChart";
+import ErrorState from "@/components/ErrorState";
 
 interface AppraisalEntry {
   date: string;
@@ -23,22 +24,42 @@ interface CollateralRecord {
   createdAt: string;
 }
 
+type ErrorType = "404" | "network" | null;
+
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function CollateralDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [record, setRecord] = useState<CollateralRecord | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState<ErrorType>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchCollateral = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API}/api/v1/collateral/${id}`);
+      if (res.status === 404) {
+        setError("404");
+        setRecord(null);
+      } else if (!res.ok) {
+        setError("network");
+        setRecord(null);
+      } else {
+        const data = await res.json();
+        setRecord(data);
+        setError(null);
+      }
+    } catch {
+      setError("network");
+      setRecord(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch(`${API}/api/v1/collateral/${id}`)
-      .then(async (res) => {
-        if (res.status === 404) { setNotFound(true); return; }
-        setRecord(await res.json());
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+    fetchCollateral();
   }, [id]);
 
   if (loading) {
@@ -49,15 +70,39 @@ export default function CollateralDetailPage() {
     );
   }
 
-  if (notFound || !record) {
+  if (error === "404") {
     return (
-      <main className="max-w-2xl mx-auto px-4 py-10 text-center">
-        <p className="text-5xl mb-4">🐄</p>
-        <h1 className="text-2xl font-bold text-brown mb-2">Collateral Not Found</h1>
-        <p className="text-brown/60 mb-6">No collateral record exists for ID <code className="bg-brown/10 px-1 rounded">{id}</code>.</p>
-        <Link href="/dashboard" className="bg-brown text-cream px-5 py-2 rounded-xl font-semibold hover:bg-brown/80 transition">
-          ← Back to Dashboard
+      <main className="max-w-2xl mx-auto px-4 py-10">
+        <Link href="/collateral" className="text-brown/60 hover:text-brown text-sm mb-6 inline-block">
+          ← Back to Collateral List
         </Link>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 p-6 text-center">
+          <p className="text-5xl mb-4" aria-hidden="true">🐄</p>
+          <h1 className="text-2xl font-bold text-brown mb-2">Collateral Not Found</h1>
+          <p className="text-brown/60 mb-6">No collateral record exists for ID <code className="bg-brown/10 px-1 rounded">{id}</code>.</p>
+          <Link href="/collateral" className="inline-block bg-brown text-cream px-5 py-2 rounded-xl font-semibold hover:bg-brown/80 transition focus:outline-none focus:ring-2 focus:ring-brown focus:ring-offset-2">
+            ← Back to Collateral List
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (error === "network") {
+    return (
+      <main className="max-w-2xl mx-auto px-4 py-10">
+        <ErrorState
+          message="Could not load collateral – check your connection"
+          onRetry={fetchCollateral}
+        />
+      </main>
+    );
+  }
+
+  if (!record) {
+    return (
+      <main className="max-w-2xl mx-auto px-4 py-10">
+        <p className="text-brown/60">No data available</p>
       </main>
     );
   }

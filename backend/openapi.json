@@ -489,6 +489,19 @@
         }
       }
     },
+    "/admin/stats": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Get platform-wide statistics",
+        "description": "Returns aggregated platform metrics: total users, loans, collateral, TVL, and active loan count. Admin role required. Response cached for 60 seconds.",
+        "operationId": "getAdminStats",
+        "responses": {
+          "200": { "description": "Platform statistics", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdminStats" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
     "/transactions": {
       "get": {
         "tags": ["transactions"],
@@ -885,6 +898,18 @@
           "restored": { "type": "boolean", "example": true },
           "id": { "type": "string" }
         }
+      },
+      "AdminStats": {
+        "type": "object",
+        "description": "Platform-wide statistics aggregated from database",
+        "required": ["totalUsers", "totalLoans", "totalCollateral", "totalValueLocked", "activeLoansCount"],
+        "properties": {
+          "totalUsers": { "type": "integer", "description": "Count of unique users (collateral owners + borrowers)", "example": 42 },
+          "totalLoans": { "type": "integer", "description": "Total number of loans (all statuses)", "example": 58 },
+          "totalCollateral": { "type": "integer", "description": "Total number of collateral items registered", "example": 123 },
+          "totalValueLocked": { "type": "number", "description": "Sum of all collateral appraised values in XLM", "example": 1500.5 },
+          "activeLoansCount": { "type": "integer", "description": "Count of loans with status 'active' or 'at_risk'", "example": 28 }
+        }
       }
     },
     "headers": {
@@ -912,6 +937,10 @@
       },
       "Unauthorized": {
         "description": "Missing or invalid JWT",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "Forbidden": {
+        "description": "Access denied — insufficient permissions",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
       },
       "NotFound": {

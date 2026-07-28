@@ -3,7 +3,8 @@
  * Uses fetch mocking to simulate API responses.
  */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import CollateralDetailPage from "@/app/collateral/[id]/page";
 
 // Mock next/navigation
@@ -81,7 +82,7 @@ describe("CollateralDetailPage", () => {
     expect(rows[2].textContent).toContain("4.50");
   });
 
-  it("renders back link to dashboard", async () => {
+  it("renders back link to collateral list", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       json: async () => mockRecord,
@@ -90,17 +91,17 @@ describe("CollateralDetailPage", () => {
     render(<CollateralDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Back to Dashboard/i)).toBeInTheDocument();
+      expect(screen.getByText(/cattle/i)).toBeInTheDocument();
     });
 
-    const link = screen.getByText(/Back to Dashboard/i).closest("a");
-    expect(link).toHaveAttribute("href", "/dashboard");
+    const link = screen.getByText(/Back to Collateral List/i).closest("a");
+    expect(link).toHaveAttribute("href", "/collateral");
   });
 
-  it("shows 404 message when collateral is not found", async () => {
+  it("shows 404 error state when collateral is not found", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 404,
-      json: async () => ({ error: "Collateral not found" }),
+      ok: false,
     } as Response);
 
     render(<CollateralDetailPage />);
@@ -110,16 +111,63 @@ describe("CollateralDetailPage", () => {
     });
 
     expect(screen.getByText(/col-1/)).toBeInTheDocument();
-    expect(screen.getByText(/Back to Dashboard/i)).toBeInTheDocument();
+    const backLink = screen.getByText(/Back to Collateral List/i).closest("a");
+    expect(backLink).toHaveAttribute("href", "/collateral");
   });
 
-  it("shows 404 message when fetch throws a network error", async () => {
+  it("shows network error state with retry button when fetch fails", async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error("Network error"));
 
     render(<CollateralDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Collateral Not Found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Could not load collateral – check your connection/i)).toBeInTheDocument();
     });
+
+    const retryButton = screen.getByRole("button", { name: /retry/i });
+    expect(retryButton).toBeInTheDocument();
+  });
+
+  it("retries fetch when retry button is clicked", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => mockRecord,
+      } as Response);
+
+    render(<CollateralDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Could not load collateral – check your connection/i)).toBeInTheDocument();
+    });
+
+    const retryButton = screen.getByRole("button", { name: /retry/i });
+    await userEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/cattle/i)).toBeInTheDocument();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows error state when response status is not ok and not 404", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 500,
+      ok: false,
+      json: async () => ({ error: "Server error" }),
+    } as Response);
+
+    render(<CollateralDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Could not load collateral – check your connection/i)).toBeInTheDocument();
+    });
+
+    const retryButton = screen.getByRole("button", { name: /retry/i });
+    expect(retryButton).toBeInTheDocument();
   });
 });

@@ -200,4 +200,147 @@ describe("CollateralGrid", () => {
       expect(screen.getByText("Loan health: 1.55")).toBeTruthy();
     });
   });
+
+  describe("multi-select functionality", () => {
+    it("shows select all checkbox when there are collaterals", () => {
+      render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const selectAllCheckbox = screen.getByRole("checkbox", { name: /Select all/i });
+      expect(selectAllCheckbox).toBeInTheDocument();
+    });
+
+    it("shows individual checkboxes that appear on hover", () => {
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      // 1 "Select all" + 2 individual checkboxes
+      expect(checkboxes.length).toBe(3);
+    });
+
+    it("selects a single item when checkbox is clicked", async () => {
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      fireEvent.click(checkboxes[1]); // Click first item's checkbox (index 1, after select-all)
+      expect(screen.getByText("1 selected")).toBeInTheDocument();
+    });
+
+    it("selects all items when select-all checkbox is clicked", async () => {
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const selectAllCheckbox = screen.getByRole("checkbox", { name: /Select all/i });
+      fireEvent.click(selectAllCheckbox);
+      expect(screen.getByText("2 selected")).toBeInTheDocument();
+    });
+
+    it("shows batch action toolbar when items are selected", () => {
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      fireEvent.click(checkboxes[1]);
+      expect(screen.getByText(/1 selected/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Export CSV/i })).toBeInTheDocument();
+    });
+
+    it("shows delete button in toolbar when onBatchDelete is provided", () => {
+      const { container } = render(
+        <CollateralGrid
+          collaterals={mockCollateral}
+          loading={false}
+          onCardClick={jest.fn()}
+          onBatchDelete={jest.fn()}
+        />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      fireEvent.click(checkboxes[1]);
+      expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
+    });
+
+    it("hides delete button when onBatchDelete is not provided", () => {
+      const { container } = render(
+        <CollateralGrid
+          collaterals={mockCollateral}
+          loading={false}
+          onCardClick={jest.fn()}
+        />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      fireEvent.click(checkboxes[1]);
+      expect(screen.queryByRole("button", { name: /Delete/i })).not.toBeInTheDocument();
+    });
+
+    it("deselects all items when clear button is clicked", () => {
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const selectAllCheckbox = screen.getByRole("checkbox", { name: /Select all/i });
+      fireEvent.click(selectAllCheckbox);
+      expect(screen.getByText("2 selected")).toBeInTheDocument();
+
+      const clearButton = screen.getByRole("button", { name: /Clear/i });
+      fireEvent.click(clearButton);
+      expect(screen.queryByText("2 selected")).not.toBeInTheDocument();
+    });
+
+    it("deselects all when Escape key is pressed", () => {
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const selectAllCheckbox = screen.getByRole("checkbox", { name: /Select all/i });
+      fireEvent.click(selectAllCheckbox);
+      expect(screen.getByText("2 selected")).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByText("2 selected")).not.toBeInTheDocument();
+    });
+
+    it("generates and downloads CSV with selected items", () => {
+      global.URL.createObjectURL = jest.fn(() => "blob:test");
+      global.URL.revokeObjectURL = jest.fn();
+      const clickSpy = jest.fn();
+      HTMLAnchorElement.prototype.click = clickSpy;
+
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={jest.fn()} />
+      );
+      const selectAllCheckbox = screen.getByRole("checkbox", { name: /Select all/i });
+      fireEvent.click(selectAllCheckbox);
+
+      const exportBtn = screen.getByRole("button", { name: /Export CSV/i });
+      fireEvent.click(exportBtn);
+
+      expect(clickSpy).toHaveBeenCalled();
+    });
+
+    it("does not navigate to card when checkbox is clicked", () => {
+      const onCardClick = jest.fn();
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={onCardClick} />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      fireEvent.click(checkboxes[1]);
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+
+    it("does not navigate to card when it is already selected", () => {
+      const onCardClick = jest.fn();
+      const { container } = render(
+        <CollateralGrid collaterals={mockCollateral} loading={false} onCardClick={onCardClick} />
+      );
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      // Select the item first
+      fireEvent.click(checkboxes[1]);
+      onCardClick.mockClear();
+
+      // Try to click the card (which should be the button)
+      const cardButton = screen.getByText("cattle").closest("button");
+      fireEvent.click(cardButton!);
+      expect(onCardClick).not.toHaveBeenCalled();
+    });
+  });
 });
