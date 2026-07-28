@@ -19,12 +19,11 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      {/* Icon or illustration */}
-      <div
-        aria-hidden="true"
-        className="mb-6 text-6xl text-brown/30 flex items-center justify-center"
-      >
-        {illustration || <span className="text-5xl">{icon || '📭'}</span>}
+      {/* Icon or illustration
+          aria-hidden is intentionally removed here (#780): illustrations now
+          carry their own role="img" + aria-label and must not be hidden. */}
+      <div className="mb-6 text-6xl text-brown/30 flex items-center justify-center">
+        {illustration || <span aria-hidden="true" className="text-5xl">{icon || '📭'}</span>}
       </div>
 
       {/* Heading */}

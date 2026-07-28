@@ -16,6 +16,7 @@ describe("EmptyState", () => {
     render(
       <EmptyState
         illustration={<EmptyLoansIllustration />}
+        heading="No Loans"
         message="You have no active loans"
         ctaLabel="Apply for a Loan"
         onCta={onCta}
@@ -23,13 +24,15 @@ describe("EmptyState", () => {
     );
     expect(screen.getByRole("status").textContent).toBe("You have no active loans");
     expect(screen.getByRole("button", { name: "Apply for a Loan" })).toBeTruthy();
-    expect(document.querySelector("svg")).toBeTruthy();
+    // illustration is now role="img" (#780) — the wrapper no longer hides it
+    expect(screen.getByRole("img")).toBeTruthy();
   });
 
   it("calls onCta when CTA button is clicked", () => {
     render(
       <EmptyState
         illustration={<EmptyCollateralIllustration />}
+        heading="No Collateral"
         message="No collateral registered"
         ctaLabel="Register Collateral"
         onCta={onCta}
@@ -43,6 +46,7 @@ describe("EmptyState", () => {
     render(
       <EmptyState
         illustration={<EmptyTransactionsIllustration />}
+        heading="No Transactions"
         message="No transactions yet"
         ctaLabel="View Loans"
         onCta={onCta}
@@ -53,33 +57,35 @@ describe("EmptyState", () => {
     expect(document.activeElement).toBe(btn);
   });
 
-  it("SVG has aria-hidden", () => {
+  it("SVG illustrations now have role=img (not aria-hidden) — #780", () => {
     render(
       <EmptyState
         illustration={<EmptyLoansIllustration />}
+        heading="msg heading"
         message="msg"
         ctaLabel="cta"
         onCta={onCta}
       />
     );
-    // The wrapper div has aria-hidden
-    const hiddenWrapper = document.querySelector('[aria-hidden="true"]');
-    expect(hiddenWrapper).toBeTruthy();
+    // Post-#780: illustrations are accessible, not hidden
+    const img = screen.getByRole("img");
+    expect(img).toBeTruthy();
+    expect(img.getAttribute("aria-label")).toBeTruthy();
   });
 
   it("renders correctly with each illustration variant", () => {
     const { rerender } = render(
-      <EmptyState illustration={<EmptyLoansIllustration />} message="Loans" ctaLabel="Go" onCta={onCta} />
+      <EmptyState illustration={<EmptyLoansIllustration />} heading="H" message="Loans" ctaLabel="Go" onCta={onCta} />
     );
     expect(screen.getByRole("status").textContent).toBe("Loans");
 
     rerender(
-      <EmptyState illustration={<EmptyCollateralIllustration />} message="Collateral" ctaLabel="Go" onCta={onCta} />
+      <EmptyState illustration={<EmptyCollateralIllustration />} heading="H" message="Collateral" ctaLabel="Go" onCta={onCta} />
     );
     expect(screen.getByRole("status").textContent).toBe("Collateral");
 
     rerender(
-      <EmptyState illustration={<EmptyTransactionsIllustration />} message="Transactions" ctaLabel="Go" onCta={onCta} />
+      <EmptyState illustration={<EmptyTransactionsIllustration />} heading="H" message="Transactions" ctaLabel="Go" onCta={onCta} />
     );
     expect(screen.getByRole("status").textContent).toBe("Transactions");
   });

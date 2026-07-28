@@ -1,16 +1,17 @@
 'use client';
 import { forwardRef } from 'react';
+import Spinner from '@/components/Spinner';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 export type ButtonState = 'idle' | 'loading' | 'success' | 'error';
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-brown-600 text-cream-50 hover:bg-brown-700 focus:ring-brown-600',
-  secondary: 'bg-gold-600 text-cream-50 hover:bg-gold-700 focus:ring-gold-600',
+  primary: 'bg-brown-600 text-cream-50 hover:bg-brown-700 focus-visible:ring-gold-500',
+  secondary: 'bg-gold-600 text-cream-50 hover:bg-gold-700 focus-visible:ring-gold-500',
   ghost:
-    'border-2 border-brown-300 text-brown-700 hover:border-brown-500 hover:bg-brown-50 focus:ring-brown-400',
-  danger: 'bg-error text-white hover:bg-error-dark focus:ring-error',
+    'border-2 border-brown-300 text-brown-700 hover:border-brown-500 hover:bg-brown-50 focus-visible:ring-brown-400',
+  danger: 'bg-error text-white hover:bg-error-dark focus-visible:ring-error',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -29,17 +30,48 @@ const stateClasses: Record<ButtonState, string> = {
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /**
+   * @deprecated Use `isLoading` instead. Kept for backwards compatibility.
+   * When `true`, the button shows a spinner and is disabled.
+   */
   loading?: boolean;
+  /**
+   * Shows a spinner inside the button and prevents interaction.
+   * Preserves the button's natural width to avoid layout shift.
+   * Sets aria-busy="true" and aria-disabled="true".
+   *
+   * Closes #783
+   */
+  isLoading?: boolean;
   state?: ButtonState;
   /** Makes the button fill its container */
   fullWidth?: boolean;
 }
 
+/**
+ * Button — primary interactive element.
+ *
+ * Loading state (#783):
+ *  - `isLoading` or `loading` prop shows a Spinner, prevents clicks.
+ *  - `aria-busy="true"` signals the loading state to assistive technology.
+ *  - `aria-disabled="true"` is set on both loading and disabled states so
+ *    screen readers announce the restriction without removing the element
+ *    from the accessibility tree (unlike the native `disabled` attribute on
+ *    anchor-buttons). The native `disabled` attr is still applied to prevent
+ *    form submission.
+ *  - Children are wrapped in a `<span>` that stays in the DOM at full opacity,
+ *    so the button width never collapses while the spinner is shown.
+ *
+ * Disabled state (#783):
+ *  - `disabled` prop applies `opacity-50` and `cursor-not-allowed` via Tailwind.
+ *  - `aria-disabled="true"` mirrors the visual state for assistive technology.
+ */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {
     variant = 'primary',
     size = 'md',
     loading = false,
+    isLoading = false,
     state = 'idle',
     fullWidth = false,
     disabled,
@@ -49,8 +81,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   },
   ref
 ) {
-  const isDisabled = disabled || loading || state === 'loading';
-  const showSpinner = state === 'loading';
+  // Unify the two loading props
+  const isLoadingActive = isLoading || loading || state === 'loading';
+  const isDisabled = disabled || isLoadingActive;
+
   const showSuccess = state === 'success';
   const showError = state === 'error';
 
@@ -58,10 +92,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       disabled={isDisabled}
-      aria-busy={showSpinner}
+      aria-busy={isLoadingActive || undefined}
+      aria-disabled={isDisabled || undefined}
       className={[
         'inline-flex items-center justify-center gap-2 font-semibold transition',
-        'focus:outline-none focus:ring-2 focus:ring-offset-2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        'focus-visible:ring-[color:var(--token-accent)]',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         state === 'idle' ? variantClasses[variant] : '',
         stateClasses[state],
@@ -73,25 +109,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         .join(' ')}
       {...props}
     >
-      {showSpinner && (
-        <svg
-          className="animate-spin h-4 w-4 shrink-0"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-        </svg>
+      {/* Spinner — shown when loading; uses Spinner component for consistency */}
+      {isLoadingActive && (
+        <Spinner className="h-4 w-4 shrink-0" label="Loading" />
       )}
-      {showSuccess && (
+
+      {/* Success icon */}
+      {showSuccess && !isLoadingActive && (
         <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path
             d="M20 6L9 17l-5-5"
@@ -102,13 +126,22 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
           />
         </svg>
       )}
-      {showError && (
+
+      {/* Error icon */}
+      {showError && !isLoadingActive && (
         <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
           <path d="M12 8v4m0 4v.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       )}
-      {children}
+
+      {/*
+       * Children are always rendered (even while loading) inside a span.
+       * This preserves the button's intrinsic width and prevents layout shift
+       * when the spinner replaces or accompanies the label.
+       * The span is aria-hidden during loading so AT reads only the spinner label.
+       */}
+      <span aria-hidden={isLoadingActive || undefined}>{children}</span>
     </button>
   );
 });

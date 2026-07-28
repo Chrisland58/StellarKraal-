@@ -118,11 +118,24 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
   });
 
-  it("shows spinner and sets aria-busy when loading", () => {
+  it("shows spinner and sets aria-busy when loading (legacy prop)", () => {
     render(<Button loading>Submit</Button>);
     const btn = screen.getByRole("button");
     expect(btn).toHaveAttribute("aria-busy", "true");
     expect(btn).toBeDisabled();
+  });
+
+  it("shows spinner and sets aria-busy when isLoading=true (#783)", () => {
+    render(<Button isLoading>Submit</Button>);
+    const btn = screen.getByRole("button");
+    expect(btn).toHaveAttribute("aria-busy", "true");
+    expect(btn).toBeDisabled();
+  });
+
+  it("sets aria-disabled when disabled (#783)", () => {
+    render(<Button disabled>Submit</Button>);
+    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button")).toHaveAttribute("aria-disabled", "true");
   });
 
   it("is disabled when disabled prop is set", () => {

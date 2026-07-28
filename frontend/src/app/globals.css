@@ -220,6 +220,34 @@ body {
   }
 }
 
+/* ── Focus-visible ring — closes #782 ──────────────────────────────────────
+   Provides a consistent, high-contrast focus ring for keyboard navigation
+   across all interactive elements (buttons, links, inputs, selects, textareas).
+
+   Rules:
+   • Uses :focus-visible so mouse users do NOT see the ring.
+   • Ring colour: --token-accent (gold, 4.5:1+ on the nav/page backgrounds).
+   • Offset: 2 px so the ring sits outside the element border.
+   • No outline:none is applied anywhere without a replacement ring style.
+   • Works in both light and dark mode via CSS custom properties.
+*/
+
+*:focus-visible {
+  outline: 3px solid var(--token-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Suppress the legacy :focus ring that some browsers still show */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Stronger ring for dark mode where the gold needs more pop */
+.dark *:focus-visible {
+  outline-color: var(--token-accent);
+}
+
 /* ── Toast animations ── */
 @keyframes toast-slide-in {
   from {
