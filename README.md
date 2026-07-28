@@ -32,18 +32,36 @@ flowchart LR
   end
 
   subgraph Backend
-    B -->|SQL| DB[(SQLite database)]
+    B -->|SQL| DB[(SQLite / PostgreSQL)]
     B -->|RPC| S[Soroban smart contract]
+    B -->|logs, json-file driver| PT[Promtail]
+    B -->|/metrics| PR[Prometheus]
   end
 
   subgraph Contracts
     S -->|WASM| W[(Stellar contract)]
   end
+
+  subgraph Observability
+    PT -->|push| LK[(Loki)]
+    PR -->|scrape / alert rules| GF[Grafana]
+    LK -->|query| GF[Grafana]
+  end
+
+  subgraph Infrastructure["Infrastructure (Terraform, AWS)"]
+    ECS[ECS Fargate: backend/frontend] --> RDS[(RDS PostgreSQL)]
+    ECS --> S3[(S3 backups)]
+    SNS[SNS + CloudWatch alerts] -.-> B
+  end
+
+  B -.deployed on.-> ECS
 ```
 
 ### Architecture Summary
 
 - Frontend: React + Next.js 14 with Tailwind CSS.
+- Observability: backend metrics are scraped by Prometheus (alert rules in [`observability/prometheus-rules.yml`](observability/prometheus-rules.yml)); container logs are shipped by Promtail to Loki; Grafana visualizes both. See [docs/observability.md](docs/observability.md).
+- Infrastructure: Terraform ([`terraform/`](terraform/) and [`infrastructure/`](infrastructure/)) provisions AWS resources (ECS Fargate, RDS, S3, VPC, backups, SNS/CloudWatch alerting) for staging/production.
 - Backend: Node.js + TypeScript + Express.
 - Smart contract: Rust using the Soroban SDK.
 - Infrastructure: Docker, Docker Compose, local SQLite database.
@@ -230,6 +248,7 @@ npm run test:frontend
 | Guide | Description |
 |---|---|
 | [Register Livestock as Collateral](docs/guides/register-collateral.md) | Step-by-step guide (English + Kiswahili) for registering animals and requesting a loan |
+| [API Integration Tutorial](docs/guides/api-integration-tutorial.md) | How an external app can register collateral, request a loan, and monitor loan status via webhooks |
 
 See also: [Help & Guides page](/help) in the app.
 

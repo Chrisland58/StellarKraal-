@@ -16,6 +16,7 @@ Step-by-step guides for borrowers using the StellarKraal protocol.
 |-------|-------------|
 | [Environment Variables](environment-variables.md) | All environment variables required to run the backend, frontend, and contracts. |
 | [Docker Setup](docker.md) | Running StellarKraal with Docker and Docker Compose. |
+| [API Integration Tutorial](api-integration-tutorial.md) | How an external app registers collateral, requests a loan, and monitors loan status via webhooks. |
 | [Register Collateral (English)](en/register-collateral.md) | English-language collateral registration walkthrough. |
 | [Register Collateral (Swahili)](sw/register-collateral.md) | Swahili-language collateral registration walkthrough. |
 | [Adding a New Animal Type](adding-animal-type.md) | End-to-end process for adding a new supported collateral animal type across contract, backend, and frontend. |
