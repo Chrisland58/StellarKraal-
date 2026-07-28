@@ -4,6 +4,16 @@ module.exports = {
   darkMode: "class",
   theme: {
     extend: {
+      // ── Keyframe animations ──────────────────────────────────────────────────
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'scale(0.6)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.6s ease-out both',
+      },
       // ── Typography scale (#298) ──────────────────────────────────────────────
       fontSize: {
         "heading-1": ["2.25rem", { lineHeight: "2.5rem", fontWeight: "700" }],

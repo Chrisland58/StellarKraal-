@@ -27,6 +27,11 @@ function HistoryChart({ history }: { history: DataPoint[] }) {
   const circleRefs = useRef<Array<SVGCircleElement | null>>([]);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const max = Math.max(...history.map((p) => p.value), 20_000);
   const W = 100; // percentage-based viewport
@@ -143,7 +148,13 @@ function HistoryChart({ history }: { history: DataPoint[] }) {
               fill={isActive ? color : "#D4A017"}
               stroke={isActive ? color : "white"}
               strokeWidth={isActive ? 0 : 0.8}
-              style={{ cursor: "pointer", transition: "r 0.15s" }}
+              className={mounted ? "motion-safe:animate-[fadeIn_0.6s_ease-out]" : ""}
+              style={{ 
+                cursor: "pointer", 
+                transition: "r 0.15s",
+                animationDelay: `${i * 50}ms`,
+                opacity: mounted ? 1 : 0
+              }}
               onMouseEnter={(e) => show(e, point, i)}
               onTouchStart={(e) => {
                 e.preventDefault();
@@ -295,10 +306,11 @@ export default function HealthGauge({ value }: Props) {
           stroke={color}
           strokeWidth={STROKE}
           strokeLinecap="round"
+          className="motion-reduce:transition-none"
           style={{
             strokeDasharray: `${Math.PI * R}`,
             strokeDashoffset: `${Math.PI * R * (1 - frac)}`,
-            transition: 'stroke-dashoffset 0.8s ease-out, stroke 0.4s',
+            transition: 'stroke-dashoffset 0.6s ease-out, stroke 0.6s ease-out',
           }}
         />
 
@@ -312,7 +324,8 @@ export default function HealthGauge({ value }: Props) {
           stroke="#1c1917"
           strokeWidth={2.5}
           strokeLinecap="round"
-          style={{ transition: 'x2 0.8s ease-out, y2 0.8s ease-out' }}
+          className="motion-reduce:transition-none"
+          style={{ transition: 'x2 0.6s ease-out, y2 0.6s ease-out' }}
         />
         <circle cx={CX} cy={CY} r={5} fill="#1c1917" />
 

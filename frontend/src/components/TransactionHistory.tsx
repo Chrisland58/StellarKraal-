@@ -11,11 +11,78 @@ import { usePagination } from '@/hooks/usePagination';
 interface Transaction {
   id: number;
   loan_id: number;
+  type?: string;
   amount: number;
+  status?: string;
   created_at: string;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+/** Single transaction row for ≥640 px table layout */
+function TransactionRow({ tx }: { tx: Transaction }) {
+  return (
+    <tr className="border-b border-brown-100 last:border-0">
+      <td className="py-2 pr-4 text-sm text-brown-600">{tx.type ?? 'Repayment'}</td>
+      <td className="py-2 pr-4 text-sm text-brown-600 font-mono">{tx.amount.toLocaleString()} stroops</td>
+      <td className="py-2 pr-4 text-sm text-brown-600">
+        {new Date(tx.created_at).toLocaleDateString()}
+      </td>
+      <td className="py-2 text-sm">
+        <StatusBadge status={tx.status} />
+      </td>
+    </tr>
+  );
+}
+
+/** Single transaction card for <640 px mobile layout */
+function TransactionCard({ tx }: { tx: Transaction }) {
+  return (
+    <li className="rounded-xl border border-brown-100 bg-cream-100 p-4 shadow-sm dark:bg-brown-800 dark:border-brown-700">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+        <div>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Type</dt>
+          <dd className="mt-0.5 text-sm font-semibold text-brown-700 dark:text-cream-200">
+            {tx.type ?? 'Repayment'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Amount</dt>
+          <dd className="mt-0.5 text-sm font-mono text-brown-700 dark:text-cream-200">
+            {tx.amount.toLocaleString()} stroops
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Date</dt>
+          <dd className="mt-0.5 text-sm text-brown-700 dark:text-cream-200">
+            {new Date(tx.created_at).toLocaleDateString()}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Status</dt>
+          <dd className="mt-0.5">
+            <StatusBadge status={tx.status} />
+          </dd>
+        </div>
+      </dl>
+    </li>
+  );
+}
+
+function StatusBadge({ status }: { status?: string }) {
+  const s = status ?? 'completed';
+  const styles: Record<string, string> = {
+    completed: 'bg-success-light text-success-dark',
+    pending:   'bg-warning-light text-warning-dark',
+    failed:    'bg-error-light text-error-dark',
+  };
+  const cls = styles[s.toLowerCase()] ?? styles.completed;
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${cls}`}>
+      {s}
+    </span>
+  );
+}
 
 export default function TransactionHistory({ walletAddress }: { walletAddress: string }) {
   const router = useRouter();
@@ -82,14 +149,32 @@ export default function TransactionHistory({ walletAddress }: { walletAddress: s
       className="mb-4"
       header={<h2 className="text-xl font-semibold text-brown-700">Transactions</h2>}
     >
-      <ul className="space-y-2">
+      {/* Mobile: card list (< 640 px) */}
+      <ul className="flex flex-col gap-3 sm:hidden" aria-label="Transaction list">
         {paginated.map((tx) => (
-          <li key={tx.id} className="text-sm text-brown-600 border-b border-brown-100 pb-2">
-            Loan #{tx.loan_id} — {tx.amount} stroops —{' '}
-            {new Date(tx.created_at).toLocaleDateString()}
-          </li>
+          <TransactionCard key={tx.id} tx={tx} />
         ))}
       </ul>
+
+      {/* Desktop: table (≥ 640 px) */}
+      <div className="hidden sm:block overflow-hidden">
+        <table className="w-full table-fixed border-collapse">
+          <thead>
+            <tr className="border-b border-brown-200 text-left">
+              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Type</th>
+              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Amount</th>
+              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Date</th>
+              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.map((tx) => (
+              <TransactionRow key={tx.id} tx={tx} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <Pagination
         page={page}
         totalPages={totalPages}

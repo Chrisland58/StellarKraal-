@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import WalletConnect from "@/components/WalletConnect";
@@ -12,8 +12,11 @@ import TransactionHistory from "@/components/TransactionHistory";
 import SkeletonHealthDashboard from "@/components/SkeletonHealthDashboard";
 import HelpMenu from "@/components/HelpMenu";
 import OnboardingModal from "@/components/OnboardingModal";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { useHealthFactor } from "@/hooks/useHealthFactor";
 import { useOnboarding } from "@/hooks/useOnboarding";
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function DashboardClient() {
   const router = useRouter();
@@ -21,6 +24,40 @@ export default function DashboardClient() {
   const [loanId, setLoanId] = useState("");
   const { showOnboarding, openOnboarding, closeOnboarding } = useOnboarding();
   const { healthFactor, loading: isHealthLoading, refresh: refreshHealth } = useHealthFactor(loanId);
+  
+  // Onboarding checklist state
+  const [hasCollateral, setHasCollateral] = useState(false);
+  const [hasLoan, setHasLoan] = useState(false);
+
+  // Detect if user has collateral
+  useEffect(() => {
+    if (!wallet) {
+      setHasCollateral(false);
+      return;
+    }
+    fetch(`${API}/api/collateral?owner=${wallet}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((body) => {
+        const items = Array.isArray(body?.data) ? body.data : [];
+        setHasCollateral(items.length > 0);
+      })
+      .catch(() => setHasCollateral(false));
+  }, [wallet]);
+
+  // Detect if user has loan
+  useEffect(() => {
+    if (!wallet) {
+      setHasLoan(false);
+      return;
+    }
+    fetch(`${API}/api/loans?borrower=${wallet}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((body) => {
+        const items = Array.isArray(body?.data) ? body.data : [];
+        setHasLoan(items.length > 0);
+      })
+      .catch(() => setHasLoan(false));
+  }, [wallet]);
 
   function handleProceedToRepay(nextLoanId: string, _nextAmount: string) {
     setLoanId(nextLoanId);
@@ -36,6 +73,11 @@ export default function DashboardClient() {
       <WalletConnect onConnect={setWallet} />
       {wallet && (
         <>
+          <OnboardingChecklist
+            hasWallet={!!wallet}
+            hasCollateral={hasCollateral}
+            hasLoan={hasLoan}
+          />
           <div className="grid gap-4 lg:grid-cols-2">
             <CollateralCard walletAddress={wallet} />
             <LoanRepaymentCalculator
