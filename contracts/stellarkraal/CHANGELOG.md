@@ -165,6 +165,22 @@ See also:
 
 ---
 
+## Known Limitations
+
+The following limitations are known as of v1.0.0 and are tracked for future resolution:
+
+| Limitation | Impact | Planned fix |
+|---|---|---|
+| **In-process reentrancy guard only** | The `AlreadyInProgress` guard prevents re-entry within a single contract call stack, but does not protect against cross-contract reentrancy via a malicious token contract. | Migrate to a persistent ledger flag in a future minor release. |
+| **Maximum 5 oracle addresses** | `OracleLimitReached` is returned if more than 5 oracles are registered. This limits decentralisation of price feeds. | Increase the cap or switch to a dynamic vector in a future version. |
+| **Rolling appraisal history capped at 3 entries** | `get_appraisal_history` returns at most the last 3 appraised values. Historical audit trails require off-chain storage. | Expand to a configurable window in a future version. |
+| **No on-chain loan deadline enforcement** | `due_ledger` is stored but not automatically enforced by the contract; enforcement requires an off-chain keeper (the backend health-factor job). | Add on-chain expiry enforcement in a future minor release. |
+| **`emergency_withdraw` transfers all reserves** | The function drains the entire token balance to a single recipient address. Partial withdrawals are not supported. | Add an `amount` parameter in a future minor release. |
+| **Persistent storage entries require manual TTL renewal** | Ledger entries not accessed within `PERSISTENT_TTL_LEDGERS` (~30 days) expire. The backend must refresh entries proactively. | Document and automate TTL refresh in the backend health-factor job. |
+| **Single-token protocol** | The contract is initialised with one token address. Multi-currency collateral or repayment is not supported. | Requires a major version with ABI-breaking changes. |
+
+---
+
 ## Template for future versions
 
 Copy this block when releasing a new version:
