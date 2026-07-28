@@ -7,6 +7,7 @@ import { EmptyTransactionsIllustration } from './illustrations';
 import Card from '@/components/Card';
 import Pagination from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 interface Transaction {
   id: number;
@@ -85,6 +86,7 @@ function StatusBadge({ status }: { status?: string }) {
 }
 
 export default function TransactionHistory({ walletAddress }: { walletAddress: string }) {
+  useScrollPosition();
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loaded, setLoaded] = useState(false);

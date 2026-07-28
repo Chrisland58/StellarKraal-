@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import SearchFilterBar from "@/components/SearchFilterBar";
 import PageTransition from "@/components/PageTransition";
 import { badgeVariants } from "@/lib/animations";
+import { useScrollPosition } from "@/hooks/useScrollPosition";
 
 interface Loan {
   id: string;
@@ -97,6 +98,8 @@ function LoanListContent() {
 }
 
 export default function LoansListClient() {
+  useScrollPosition();
+
   return (
     <PageTransition>
       <main className="max-w-3xl mx-auto px-4 py-10">

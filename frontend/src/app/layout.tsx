@@ -4,6 +4,7 @@ import KeyboardShortcutsProvider from "@/components/KeyboardShortcutsProvider";
 import Link from "next/link";
 import OfflineBanner from "@/components/OfflineBanner";
 import Navbar from "@/components/Navbar";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import ThemeProvider, { ThemeScript } from "@/components/ThemeProvider";
 import { ToastProvider, ToastContainer } from "@/components/toast";
 import SkipToContent from "@/components/SkipToContent";
@@ -89,7 +90,8 @@ export default function RootLayout({
               </Link>
             </nav>
             <Navbar />
-            <main id="main-content">
+            <MobileBottomNav />
+            <main id="main-content" className="pb-20 md:pb-0">
             {children}
             </main>
             <ToastContainer />

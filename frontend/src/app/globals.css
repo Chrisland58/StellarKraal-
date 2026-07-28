@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Safe Area Inset Support for iOS ── */
+@supports (padding: max(0px)) {
+  .safe-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
 /* ── Light mode CSS variables ── */
 :root {
   --color-bg: #FEFCF8;
@@ -242,4 +249,67 @@ body {
 
 .toast-exit {
   animation: toast-fade-out 0.3s ease-in forwards;
+}
+
+/* ── High Contrast Mode Support (Windows Forced Colors) ── */
+@supports (forced-colors: active) {
+  /* Ensure all interactive elements are visible in high contrast mode */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    border-color: CanvasText;
+    color: CanvasText;
+    background-color: Canvas;
+  }
+
+  button:hover,
+  a:hover,
+  button:focus,
+  a:focus {
+    background-color: Highlight;
+    color: HighlightText;
+    border-color: HighlightText;
+  }
+
+  /* Add forced borders for separators instead of background-only styling */
+  hr,
+  .border,
+  [class*="border-"],
+  .divide-y > * + *,
+  .divide-x > * + * {
+    border-color: CanvasText !important;
+  }
+
+  /* Ensure backgrounds don't obscure text in high contrast mode */
+  [class*="bg-"],
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+
+  /* Icon-only buttons need visible text or aria-labels in high contrast mode */
+  button:not(:has(span:not([aria-hidden="true"]))) {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+
+  /* Ensure form elements are properly styled */
+  input:invalid,
+  textarea:invalid,
+  select:invalid {
+    border-color: CanvasText;
+    outline: 2px solid CanvasText;
+    outline-offset: 1px;
+  }
+
+  /* Improve visibility of focus states */
+  *:focus-visible {
+    outline: 3px solid CanvasText;
+    outline-offset: 2px;
+  }
 }
