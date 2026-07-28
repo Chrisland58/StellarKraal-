@@ -354,14 +354,6 @@ impl StellarKraal {
         }
         admin.require_auth();
 
-        /// Default TWAP window: 720 ledgers ≈ 1 hour (at ~5 s/ledger).
-        const DEFAULT_TWAP_WINDOW: u64 = 720;
-        let twap_window = if twap_window_ledgers == 0 {
-            DEFAULT_TWAP_WINDOW
-        } else {
-            twap_window_ledgers
-        };
-
         env.storage().instance().set(&ADMIN, &admin);
         env.storage().instance().set(&ORACLE, &oracle);
         env.storage().instance().set(&TOKEN, &token);
@@ -676,6 +668,68 @@ impl StellarKraal {
         );
 
         Ok(id)
+    }
+
+    // ── reappraise_collateral ──────────────────────────────────────────────
+    /// Update the appraised value of an existing collateral record.
+    ///
+    /// # Authorization
+    /// Callable by either the collateral owner or an approved oracle.
+    ///
+    /// # Arguments
+    /// * `id` - The collateral record ID to reappraise
+    /// * `new_value` - The new appraised value (must be > 0)
+    ///
+    /// # Events
+    /// Emits a "collateral_reappraised" event with the collateral ID and new value.
+    pub fn reappraise_collateral(
+        env: Env,
+        caller: Address,
+        id: u64,
+        new_value: i128,
+    ) -> Result<(), Error> {
+        Self::assert_initialized(&env)?;
+        caller.require_auth();
+
+        if new_value <= 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        let mut collateral: CollateralRecord = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Collateral(id))
+            .ok_or(Error::CollateralNotFound)?;
+
+        let oracles = Self::get_oracles(env.clone());
+        let is_oracle = oracles.contains(&caller);
+        let is_owner = collateral.owner == caller;
+
+        if !is_owner && !is_oracle {
+            return Err(Error::Unauthorized);
+        }
+
+        let old_value = collateral.appraised_value;
+        collateral.appraised_value = new_value;
+
+        if collateral.appraisal_history.len() >= 3 {
+            collateral.appraisal_history.remove(0);
+        }
+        collateral.appraisal_history.push_back(new_value);
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Collateral(id), &collateral);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Collateral(id), PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_LEDGERS);
+
+        env.events().publish(
+            (symbol_short!("livestock"), Symbol::new(&env, "reappraised")),
+            (id, old_value, new_value),
+        );
+
+        Ok(())
     }
 
     // ── request_loan ──────────────────────────────────────────────────────
@@ -1139,68 +1193,6 @@ impl StellarKraal {
         Ok(record.appraisal_history)
     }
 
-    // ── update_appraisal ──────────────────────────────────────────────────
-    /// Update the appraised value of a collateral record.
-    pub fn update_appraisal(
-        env: Env,
-        owner: Address,
-        collateral_id: u64,
-        new_value: i128,
-    ) -> Result<(), Error> {
-        Self::assert_initialized(&env)?;
-        Self::assert_not_paused(&env)?;
-        if new_value <= 0 {
-            return Err(Error::InvalidAmount);
-        }
-        owner.require_auth();
-
-        let mut record: CollateralRecord = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Collateral(collateral_id))
-            .ok_or(Error::CollateralNotFound)?;
-
-        if record.owner != owner {
-            return Err(Error::Unauthorized);
-        }
-
-        if record.appraisal_history.len() >= 3 {
-            let mut new_hist = Vec::new(&env);
-            let start = record.appraisal_history.len() - 2;
-            for i in start..record.appraisal_history.len() {
-                new_hist.push_back(record.appraisal_history.get(i).unwrap());
-            }
-            record.appraisal_history = new_hist;
-        }
-        record.appraisal_history.push_back(new_value);
-        record.appraised_value = new_value;
-
-        env.storage()
-            .persistent()
-            .set(&DataKey::Collateral(collateral_id), &record);
-
-        env.events().publish(
-            (symbol_short!("collat"), symbol_short!("appraised")),
-            (collateral_id, new_value),
-        );
-
-        Ok(())
-    }
-
-    // ── get_appraisal_history ─────────────────────────────────────────────
-    /// Return the rolling appraisal history (up to 3 entries) for a collateral.
-    pub fn get_appraisal_history(
-        env: Env,
-        collateral_id: u64,
-    ) -> Result<Vec<i128>, Error> {
-        let record: CollateralRecord = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Collateral(collateral_id))
-            .ok_or(Error::CollateralNotFound)?;
-        Ok(record.appraisal_history)
-    }
-
     // ── get_loan ──────────────────────────────────────────────────────────
     /// Fetch a loan record by ID.
     pub fn get_loan(env: Env, loan_id: u64) -> Result<LoanRecord, Error> {
@@ -1364,6 +1356,43 @@ impl StellarKraal {
             origination_fee_bps: orig,
             interest_fee_bps: int,
         })
+    }
+
+    // ── set_treasury ──────────────────────────────────────────────────────
+    /// Update the treasury address (admin-only).
+    ///
+    /// # Arguments
+    /// * `admin` - The current admin address
+    /// * `new_treasury` - The new treasury address (must not be zero address)
+    ///
+    /// # Events
+    /// Emits a "treasury_updated" event with both the old and new addresses.
+    pub fn set_treasury(env: Env, admin: Address, new_treasury: Address) -> Result<(), Error> {
+        Self::assert_initialized(&env)?;
+        Self::assert_admin(&env, &admin)?;
+        admin.require_auth();
+
+        let zero = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"));
+        if new_treasury == zero {
+            return Err(Error::Unauthorized);
+        }
+
+        let old_treasury: Address = env.storage().instance().get(&TREASURY).unwrap();
+        env.storage().instance().set(&TREASURY, &new_treasury);
+
+        env.events().publish(
+            (symbol_short!("Admin"), symbol_short!("TreaUpd")),
+            (old_treasury, new_treasury),
+        );
+
+        Ok(())
+    }
+
+    // ── get_treasury ──────────────────────────────────────────────────────
+    /// Retrieve the current treasury address (read-only).
+    pub fn get_treasury(env: Env) -> Result<Address, Error> {
+        Self::assert_initialized(&env)?;
+        Ok(env.storage().instance().get(&TREASURY).unwrap())
     }
 
     // ── emergency_withdraw ─────────────────────────────────────────────
