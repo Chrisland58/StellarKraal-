@@ -259,6 +259,16 @@ pub struct TWAPData {
     pub last_update: u64,
 }
 
+/// Pause status with optional expiry returned by [`StellarKraal::is_paused_with_expiry`].
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PauseStatus {
+    /// Whether the contract is currently paused.
+    pub is_paused: bool,
+    /// Ledger timestamp at which the pause expires, or `None` if not paused or paused indefinitely.
+    pub expires_at: Option<u64>,
+}
+
 // ── Storage helpers ──────────────────────────────────────────────────────────
 
 /// Persistent storage keys used by the contract.
@@ -425,6 +435,41 @@ impl StellarKraal {
     /// Returns `true` if the contract is currently paused.
     pub fn is_paused(env: Env) -> bool {
         Self::is_paused_raw(&env)
+    }
+
+    // ── is_paused_with_expiry ──────────────────────────────────────────────
+    /// Returns the pause status along with optional expiry time.
+    ///
+    /// Read-only — no authentication required.
+    pub fn is_paused_with_expiry(env: Env) -> PauseStatus {
+        let paused: bool = env.storage().instance().get(&PAUSED).unwrap_or(false);
+        if !paused {
+            return PauseStatus {
+                is_paused: false,
+                expires_at: None,
+            };
+        }
+        let expires_at: u64 = env.storage().instance().get(&PAUSE_EXP).unwrap_or(0);
+        let now = env.ledger().timestamp();
+        if now >= expires_at && expires_at != 0 {
+            // Pause has expired
+            PauseStatus {
+                is_paused: false,
+                expires_at: Some(expires_at),
+            }
+        } else if expires_at == 0 {
+            // Indefinite pause (no expiry)
+            PauseStatus {
+                is_paused: true,
+                expires_at: None,
+            }
+        } else {
+            // Active pause with expiry
+            PauseStatus {
+                is_paused: true,
+                expires_at: Some(expires_at),
+            }
+        }
     }
 
     // ── pause ─────────────────────────────────────────────────────────────
@@ -1385,6 +1430,15 @@ impl StellarKraal {
         let min_loan: i128 = env.storage().instance().get(&MIN_LOAN).unwrap_or(DEFAULT_MIN_LOAN);
         let max_loan: i128 = env.storage().instance().get(&MAX_LOAN).unwrap_or(DEFAULT_MAX_LOAN);
         Ok((min_loan, max_loan))
+    }
+
+    // ── get_ltv ──────────────────────────────────────────────────────────
+    /// Return the current loan-to-value ratio in basis points.
+    ///
+    /// Read-only — no authentication required.
+    pub fn get_ltv(env: Env) -> Result<u32, Error> {
+        Self::assert_initialized(&env)?;
+        Ok(env.storage().instance().get(&LTV).unwrap())
     }
 
     // ── set_ltv ──────────────────────────────────────────────────────────

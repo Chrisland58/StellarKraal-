@@ -1878,6 +1878,25 @@ fn test_set_ltv_non_admin_fails() {
     client.set_ltv(&attacker, &5000u32);
 }
 
+// ── get_ltv ───────────────────────────────────────────────────────────
+#[test]
+fn test_get_ltv_returns_initialized_value() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    // initialize() sets ltv to 6000 bps (60%)
+    assert_eq!(client.get_ltv(), 6000u32);
+}
+
+#[test]
+fn test_get_ltv_after_update() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    client.set_ltv(&admin, &7000u32);
+    assert_eq!(client.get_ltv(), 7000u32);
+}
+
 // ── proptests ─────────────────────────────────────────────────────────
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(256))]
@@ -2898,6 +2917,58 @@ fn test_pause_auto_expiry_no_lifted_event() {
             && t1.map(|s| s == symbol_short!("activated")).unwrap_or(false)
     }).count();
     assert_eq!(activated_count, 1, "exactly one pause_activated event expected");
+}
+
+// ── is_paused_with_expiry (issue #856) ────────────────────────────────
+#[test]
+fn test_is_paused_with_expiry_not_paused() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    let status = client.is_paused_with_expiry();
+    assert!(!status.is_paused, "contract should not be paused initially");
+    assert_eq!(status.expires_at, None, "expires_at should be None when not paused");
+}
+
+#[test]
+fn test_is_paused_with_expiry_paused_no_expiry() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    // Pause without setting a duration (indefinite pause)
+    client.pause(&admin);
+    let status = client.is_paused_with_expiry();
+    assert!(status.is_paused, "contract should be paused");
+    assert_eq!(status.expires_at, None, "expires_at should be None for indefinite pause");
+}
+
+#[test]
+fn test_is_paused_with_expiry_paused_with_expiry() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    // Pause with a duration
+    client.set_pause_duration(&admin, &1000u64);
+    client.pause(&admin);
+    let status = client.is_paused_with_expiry();
+    assert!(status.is_paused, "contract should be paused");
+    assert!(status.expires_at.is_some(), "expires_at should be Some for pause with duration");
+}
+
+#[test]
+fn test_is_paused_with_expiry_after_unpause() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+
+    client.pause(&admin);
+    client.unpause(&admin);
+    let status = client.is_paused_with_expiry();
+    assert!(!status.is_paused, "contract should not be paused after unpause");
+    assert_eq!(status.expires_at, None, "expires_at should be None after unpause");
 }
 
 // ── #709: Store last 5 health factor values per loan ───────────────────
