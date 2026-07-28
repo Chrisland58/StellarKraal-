@@ -24,3 +24,7 @@ To ensure stability and prevent any single misbehaving service from starving the
 When deploying these services to a Kubernetes cluster, these `docker-compose` limits must be mapped to Kubernetes `resources.limits` and `resources.requests` in the respective Deployment/Pod manifests. The values established here serve as the baseline minimums required to operate correctly in the cluster.
 
 If the containers experience `OOMKilled` errors in staging, the memory limits should be incrementally raised by 256M until stability is achieved.
+
+---
+
+For the full AWS Terraform infrastructure guide covering VPC, ALB, Auto Scaling Group, RDS, and ElastiCache modules, see **[docs/infrastructure-terraform.md](./infrastructure-terraform.md)**.
