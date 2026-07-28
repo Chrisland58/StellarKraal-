@@ -1,6 +1,6 @@
 # Loan State Machine
 
-This document describes every state a StellarKraal loan can be in, the valid transitions between states, and the events that trigger each transition.
+This document describes every state a StellarKraal loan can be in, the valid transitions between states, the triggering function names, and the errors thrown for invalid transitions.
 
 ---
 
@@ -10,16 +10,25 @@ This document describes every state a StellarKraal loan can be in, the valid tra
 stateDiagram-v2
     [*] --> Pending : borrower submits loan request (off-chain)
 
-    Pending --> Active : request_loan() succeeds on-chain\n[collateral locked, disbursement sent]
+    Pending --> Active : transition("pending", "active")\nrequest_loan() succeeds on-chain
 
-    Active --> Active : repay_loan() — partial repayment\n[outstanding > 0]
-    Active --> Repaid : repay_loan() — full repayment\n[outstanding == 0]
-    Active --> Active : liquidate() — partial liquidation\n[outstanding > 0, HF < 1.0]
-    Active --> Liquidated : liquidate() — full liquidation\n[outstanding == 0, HF < 1.0]
+    Active --> at_risk : transition("active", "at_risk")\nhealth factor drops below threshold
+
+    at_risk --> Active : transition("at_risk", "active")\nhealth factor recovers (repayment / price change)
+
+    Active --> Repaid : transition("active", "repaid")\nrepay_loan() — full repayment
+
+    Active --> Liquidated : transition("active", "liquidated")\nliquidate() — full liquidation
+
+    at_risk --> Repaid : transition("at_risk", "repaid")\nrepay_loan() — full repayment
+
+    at_risk --> Liquidated : transition("at_risk", "liquidated")\nliquidate() — full liquidation
 
     Repaid --> [*]
     Liquidated --> [*]
 ```
+
+> **Note:** `Pending` is an off-chain state managed by the backend only. All other states (`Active`, `at_risk`, `Repaid`, `Liquidated`) map to on-chain `LoanStatus` variants and are also represented in the backend state machine.
 
 ---
 
@@ -52,6 +61,21 @@ The loan is open. An on-chain `LoanRecord` exists with `outstanding > 0`. Collat
 
 ---
 
+### `at_risk`
+
+**Layer:** on-chain (`LoanStatus::AtRisk`)
+
+The loan's health factor has fallen below the warning threshold but is still above the liquidation threshold. The loan is still active but flagged for close monitoring.
+
+**Invariants:**
+- `outstanding > 0`
+- `HF < health_factor_warning_threshold`
+- `HF >= liquidation_threshold`
+- Borrower can still repay; liquidators **cannot** liquidate until HF drops below liquidation threshold.
+- Can transition back to `Active` if health factor recovers.
+
+---
+
 ### `Repaid`
 
 **Layer:** on-chain (`LoanStatus::Repaid`)
@@ -78,16 +102,93 @@ The loan was fully closed through the liquidation mechanism. This is a terminal 
 
 ---
 
-## Transitions
+## Valid Transitions
 
-| From | To | Triggering Event | Condition |
-|---|---|---|---|
-| _(none)_ | `Pending` | Borrower submits loan request to backend API | Contract not paused; collateral unlocked |
-| `Pending` | `Active` | `request_loan()` confirmed on-chain | `amount <= total_collateral_value × LTV / 10_000`; borrower auth; collateral owned by borrower |
-| `Active` | `Active` | `repay_loan()` — partial | `repay_amount < outstanding`; borrower auth |
-| `Active` | `Repaid` | `repay_loan()` — full | `repay_amount >= outstanding` (capped to `outstanding`); borrower auth |
-| `Active` | `Active` | `liquidate()` — partial | `HF < 10_000`; `repay_amount <= outstanding × close_factor / 10_000`; liquidator auth |
-| `Active` | `Liquidated` | `liquidate()` — full | Same as above and `outstanding` reaches 0 after repayment |
+| From | To | Backend Function | On-Chain Trigger | Condition |
+|---|---|---|---|---|
+| _(none)_ | `Pending` | — | Borrower submits loan request to backend API | Contract not paused; collateral unlocked |
+| `Pending` | `Active` | `transition("pending", "active")` | `request_loan()` confirmed on-chain | `amount <= total_collateral_value × LTV / 10_000`; borrower auth; collateral owned by borrower |
+| `Active` | `at_risk` | `transition("active", "at_risk")` | Health factor drops below warning threshold (off-chain job) | `HF < warning_threshold` |
+| `at_risk` | `Active` | `transition("at_risk", "active")` | Health factor recovers (repayment / price change) | `HF >= warning_threshold` |
+| `Active` | `Repaid` | `transition("active", "repaid")` | `repay_loan()` — full | `repay_amount >= outstanding`; borrower auth |
+| `Active` | `Liquidated` | `transition("active", "liquidated")` | `liquidate()` — full | `HF < 10_000`; `outstanding` reaches 0 |
+| `at_risk` | `Repaid` | `transition("at_risk", "repaid")` | `repay_loan()` — full | `repay_amount >= outstanding`; borrower auth |
+| `at_risk` | `Liquidated` | `transition("at_risk", "liquidated")` | `liquidate()` — full | `HF < 10_000`; `outstanding` reaches 0 |
+
+### Helper Function
+
+**`allowedTransitions(status)`** returns all valid next states for a given status:
+- `allowedTransitions("pending")` → `["active"]`
+- `allowedTransitions("active")` → `["repaid", "liquidated", "at_risk"]`
+- `allowedTransitions("at_risk")` → `["repaid", "liquidated", "active"]`
+- `allowedTransitions("repaid")` → `[]` (terminal)
+- `allowedTransitions("liquidated")` → `[]` (terminal)
+
+---
+
+## Invalid Transitions
+
+The backend function `transition(current, next, history)` throws an `InvalidTransitionError` when an invalid transition is attempted. The error message follows the format:
+
+```
+Invalid loan transition: {from} → {to}
+```
+
+| From | To | Behaviour |
+|---|---|---|
+| `pending` | `repaid` | `InvalidTransitionError` |
+| `pending` | `liquidated` | `InvalidTransitionError` |
+| `pending` | `pending` | `InvalidTransitionError` |
+| `active` | `pending` | `InvalidTransitionError` |
+| `active` | `active` | `InvalidTransitionError` |
+| `repaid` | `active` | `InvalidTransitionError` |
+| `repaid` | `liquidated` | `InvalidTransitionError` |
+| `repaid` | `pending` | `InvalidTransitionError` |
+| `repaid` | `at_risk` | `InvalidTransitionError` |
+| `repaid` | `repaid` | `InvalidTransitionError` |
+| `liquidated` | `active` | `InvalidTransitionError` |
+| `liquidated` | `repaid` | `InvalidTransitionError` |
+| `liquidated` | `pending` | `InvalidTransitionError` |
+| `liquidated` | `at_risk` | `InvalidTransitionError` |
+| `liquidated` | `liquidated` | `InvalidTransitionError` |
+| `at_risk` | `pending` | `InvalidTransitionError` |
+| `at_risk` | `at_risk` | `InvalidTransitionError` |
+
+Error type: `InvalidTransitionError extends Error`
+
+```typescript
+export class InvalidTransitionError extends Error {
+  constructor(from: LoanStatus, to: LoanStatus) {
+    super(`Invalid loan transition: ${from} → ${to}`);
+    this.name = "InvalidTransitionError";
+  }
+}
+```
+
+**Note:** The history array is **not** mutated when an invalid transition is attempted.
+
+---
+
+## Implementation
+
+The state machine is implemented in the backend at [`backend/src/loanStateMachine.ts`](../../backend/src/loanStateMachine.ts):
+
+- **`transition(current, next, history)`** — validates the transition, appends a `TransitionRecord` to history, returns the new status.
+- **`allowedTransitions(status)`** — returns the array of valid next states.
+- **`InvalidTransitionError`** — thrown for invalid transitions.
+- **`TransitionRecord`** — `{ from: LoanStatus, to: LoanStatus, at: string }` with ISO timestamp.
+
+The valid transition matrix is defined as a constant:
+
+```typescript
+const TRANSITIONS: Record<LoanStatus, LoanStatus[]> = {
+  pending: ["active"],
+  active: ["repaid", "liquidated", "at_risk"],
+  at_risk: ["repaid", "liquidated", "active"],
+  repaid: [],
+  liquidated: [],
+};
+```
 
 ---
 
@@ -109,5 +210,6 @@ Each transition emits a Soroban contract event. See [events.md](events.md) for f
 
 - Smart contract: [`contracts/stellarkraal/src/lib.rs`](../../contracts/stellarkraal/src/lib.rs)
 - Backend state machine: [`backend/src/loanStateMachine.ts`](../../backend/src/loanStateMachine.ts)
+- State machine tests: [`backend/src/loanStateMachine.test.ts`](../../backend/src/loanStateMachine.test.ts)
 - Liquidation mechanics: [liquidation.md](liquidation.md)
 - Contract events reference: [events.md](events.md)

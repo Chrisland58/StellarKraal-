@@ -66,6 +66,32 @@ flowchart LR
 - Smart contract: Rust using the Soroban SDK.
 - Infrastructure: Docker, Docker Compose, local SQLite database.
 
+### Loan State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : submit loan
+
+    Pending --> Active : request_loan()
+
+    Active --> at_risk : HF drops
+
+    at_risk --> Active : HF recovers
+
+    Active --> Repaid : repay_loan()
+
+    Active --> Liquidated : liquidate()
+
+    at_risk --> Repaid : repay_loan()
+
+    at_risk --> Liquidated : liquidate()
+
+    Repaid --> [*]
+    Liquidated --> [*]
+```
+
+Full documentation: [Loan State Machine](docs/protocol/loan-state-machine.md)
+
 ## Local Development
 
 ### Prerequisites
