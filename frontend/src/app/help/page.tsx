@@ -33,6 +33,17 @@ const guides = [
       },
     ],
   },
+  {
+    title: "Freighter Wallet Troubleshooting",
+    description:
+      "Solutions for common Freighter wallet errors: extension not detected, locked wallet, wrong network selected, transaction rejected, and sequence number drift. Covers desktop and mobile browser scenarios.",
+    links: [
+      {
+        label: "Troubleshooting guide",
+        href: "https://github.com/teslims2/StellarKraal-/blob/main/docs/troubleshooting.md#freighter-wallet",
+      },
+    ],
+  },
 ];
 
 export default function HelpPage() {

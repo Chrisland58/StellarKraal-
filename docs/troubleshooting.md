@@ -229,6 +229,80 @@ npm run migrate:dev --prefix backend
 
 ---
 
+## Freighter Wallet
+
+### 16. Freighter extension not detected — `isConnected()` returns `false`
+
+**Symptom:** The wallet connect button shows "Install Freighter" or the app reports the wallet is unavailable even after the extension is installed.
+
+**Cause:** The Freighter browser extension is either not installed, or the page loaded before the extension had time to inject its API into `window.freighter`.
+
+**Resolution:**
+- **Desktop (Chrome/Brave/Firefox):** Install or enable the [Freighter extension](https://www.freighter.app/). After installation, do a **hard refresh** (`Ctrl+Shift+R` / `Cmd+Shift+R`) to let the extension inject into the page.
+- **Mobile browsers:** Freighter is a desktop-only extension. Mobile users cannot connect a Freighter wallet directly. Use a desktop browser or check if the app offers an alternative signing flow.
+- After a fresh install, close and reopen the browser tab so the extension is fully loaded before the page runs.
+
+---
+
+### 17. Wallet locked — `getAddress()` or `signTransaction()` returns an error
+
+**Symptom:** The wallet API returns a rejection or empty response when trying to fetch the public key or sign a transaction. The Freighter extension may prompt a password entry.
+
+**Cause:** The Freighter extension is installed but the wallet is locked (requires password entry before it can expose the public key or sign).
+
+**Resolution:**
+1. Click the Freighter extension icon in the browser toolbar.
+2. Unlock the wallet with your password.
+3. Return to the StellarKraal tab and retry the action. No page refresh is needed.
+
+If Freighter closes the popup before you can approve a transaction, make sure your browser isn't blocking extension popups (check popup-blocker settings).
+
+---
+
+### 18. Wrong network selected in Freighter — transactions rejected or silently fail
+
+**Symptom:** Transactions are built successfully but submission fails. The frontend shows a network mismatch banner (`NetworkMismatchBanner`). Freighter may report a passphrase mismatch.
+
+**Cause:** Freighter's selected network (e.g., Mainnet) does not match the network the app is configured for via `NEXT_PUBLIC_NETWORK` (e.g., Testnet). Transaction signing requires matching network passphrases.
+
+**Resolution:**
+1. Open the Freighter extension and click the network name at the top (e.g., "Mainnet").
+2. Switch to **Testnet** (or whichever network the app is running on).
+3. If the target network is not listed, add a custom network using the RPC endpoint from your `.env` (`RPC_URL`).
+4. Reload the app — the mismatch banner should disappear.
+
+**Desktop vs mobile:** This applies only to desktop browsers. The `useNetworkMismatch` hook in `frontend/src/hooks/useNetworkMismatch.ts` detects the mismatch and surfaces the banner automatically.
+
+---
+
+### 19. Transaction rejected by user — signing dialog dismissed
+
+**Symptom:** The app shows a "transaction rejected" or "user cancelled" error after a Freighter popup appears.
+
+**Cause:** The user dismissed the Freighter signing dialog, or the dialog timed out waiting for approval.
+
+**Resolution:**
+- This is expected behaviour when the user cancels. The app should display a dismissible error message and allow retrying.
+- If the popup appears but closes immediately (without user action), check whether a browser extension (e.g., ad blocker or popup manager) is closing it automatically. Temporarily disable such extensions for the StellarKraal origin.
+- If the signing popup never appears at all, ensure the extension is unlocked (see **Entry 17** above).
+
+**Error code reference:** Freighter returns a `"User declined access"` or `"Transaction was rejected"` string in the rejected promise. The `freighterClient.ts` wrapper does not swallow these — they propagate to the calling component for display.
+
+---
+
+### 20. `txBAD_SEQ` after Freighter signs a transaction (wallet-side sequence number drift)
+
+**Symptom:** Freighter successfully signs a transaction but submission fails with `TransactionResultCode.txBAD_SEQ`.
+
+**Cause:** Freighter cached a stale account sequence number. This happens when multiple transactions are submitted in quick succession or when another client (CLI, a different browser tab) submitted a transaction for the same account.
+
+**Resolution:**
+1. Wait a few seconds, then retry — the frontend refetches the account's sequence number on each new transaction build.
+2. If the error persists, clear Freighter's cached account data: open Freighter → Settings → Manage Assets → select the account → clear/refresh.
+3. See also: **Entry 12** (`txBAD_SEQ` from the backend side) for backend-specific sequence handling.
+
+---
+
 ## Updating this guide
 
 When a new common issue is identified, add an entry under the appropriate category following the format:

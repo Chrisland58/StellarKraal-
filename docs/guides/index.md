@@ -22,6 +22,9 @@ Step-by-step guides for borrowers using the StellarKraal protocol.
 | [CHANGELOG Guide](changelog.md) | How to format and place a new `CHANGELOG.md` entry. |
 | [Handling Dependabot PRs](dependabot.md) | Triage, review, and merge process for automated dependency update PRs. |
 | [Load Testing a Live Environment](load-testing.md) | How to load test a deployed (e.g. staging) environment, as opposed to on-chain benchmarks. |
+| [Idempotency Keys](idempotency.md) | How to generate and use `Idempotency-Key` headers for safe retries on write endpoints. Includes UUID v4 examples and replay behaviour. |
+| [Monitoring and Alerting](alerting.md) | Alert rule structure, Slack/PagerDuty integration, cooldown deduplication, and step-by-step guide to adding a new alert rule. |
+| [Response Cache Middleware](response-cache.md) | Which endpoints are cached, how cache keys are built, bypassing the cache, manual invalidation, and thundering-herd considerations. |
 
 ---
 

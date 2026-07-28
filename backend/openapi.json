@@ -214,7 +214,17 @@
       "post": {
         "tags": ["loan"],
         "summary": "Request a new loan",
+        "description": "Builds an unsigned Soroban transaction to request a new loan against registered collateral. Consider supplying an `Idempotency-Key` header on retries to avoid accidentally submitting duplicate loan requests.",
         "operationId": "requestLoan",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Optional client-generated UUID v4 key. If supplied, the server stores the response for 24 hours and returns the original on replay with `X-Idempotent-Replayed: true`."
+          }
+        ],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoanRequestBody" } } } },
         "responses": {
           "200": { "description": "Unsigned XDR transaction", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/XdrResponse" } } } },

@@ -77,3 +77,4 @@ Key environment changes:
 
 - Prometheus metrics: [`docs/protocol/liquidation.md`](protocol/liquidation.md) *(see also `GET /metrics` endpoint)*
 - Backend logger: [`backend/src/utils/logger.ts`](../backend/src/utils/logger.ts)
+- Alerting configuration: [`docs/guides/alerting.md`](guides/alerting.md) — how alert rules are structured and how to add new ones
