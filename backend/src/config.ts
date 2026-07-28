@@ -3,6 +3,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   PORT: z.string().regex(/^\d+$/, 'PORT must be a valid number').default('3001'),
   RPC_URL: z.string().url('RPC_URL must be a valid URL'),
+  HORIZON_URL: z.string().url('HORIZON_URL must be a valid URL').optional(),
   CONTRACT_ID: z.string().min(1, 'CONTRACT_ID is required'),
   NEXT_PUBLIC_NETWORK: z.enum(['testnet', 'mainnet']).default('testnet'),
   // Rate limiting (optional with defaults)
@@ -91,6 +92,12 @@ const envSchema = z.object({
     }),
   // Audit log directory path
   AUDIT_LOG_DIR: z.string().optional(),
+  // Log level for the application logger
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  // Log rotation: maximum number of log files to keep (7-day retention = 7 files for daily rotation)
+  LOG_MAX_FILES: z.string().regex(/^\d+$/, 'LOG_MAX_FILES must be a number').default('7'),
+  // Log rotation: maximum size of a single log file before rotation (e.g., "10m")
+  LOG_MAX_SIZE: z.string().default('10m'),
   // Optional PostgreSQL connection URL; falls back to SQLite when unset.
   DATABASE_URL: z
     .string()

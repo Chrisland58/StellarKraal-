@@ -24,6 +24,11 @@ import {
   batchRegisterCollateral,
   getCollateralById,
 } from '../services/collateralService';
+import { getProfile, updateProfile, insertAuditEntry, listCollateral, listLoans } from '../db/store';
+import { updateProfileSchema } from '../validators/profile';
+import { validate } from '../middleware/validate';
+import { redact, auditLogger } from '../middleware/audit';
+import { etagMiddleware } from '../utils/etag';
 const APP_VERSION = process.env['npm_package_version'] || '1.0.0';
 const startTime = Date.now();
 
@@ -433,6 +438,48 @@ v1Router.get(
     }
     // NOT_FOUND → still pending (in mempool or not yet confirmed)
     return res.json({ status: 'pending' });
+  })
+);
+
+// ── User Profile ──────────────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/v1/profile
+ *
+ * Update the authenticated user's profile.
+ * Accepts partial updates for displayName and notificationPreferences.
+ *
+ * @param displayName - Optional user display name (2-40 characters)
+ * @param notificationPreferences - Optional notification preferences object
+ * @returns Updated profile object
+ */
+v1Router.patch(
+  '/profile',
+  validate(updateProfileSchema),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = (req as any).user as { publicKey?: string } | undefined;
+    if (!user?.publicKey) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const updates = req.body;
+    const profile = updateProfile(user.publicKey, updates);
+
+    insertAuditEntry({
+      userId: user.publicKey,
+      action: 'profile.update',
+      resource: 'profile',
+      resourceId: user.publicKey,
+      requestBody: redact(updates),
+      ip: req.ip,
+    });
+
+    auditLogger.info('profile.update', {
+      requestId: (req as any).requestId,
+      userId: user.publicKey,
+    });
+
+    res.json(profile);
   })
 );
 

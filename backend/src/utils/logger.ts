@@ -1,7 +1,45 @@
 import winston from "winston";
+import DailyRotateFile from "winston-daily-rotate-file";
+import path from "path";
+import { mkdirSync } from "fs";
 import { config } from "../config";
 
 const isProd = config.NODE_ENV === "production";
+
+/**
+ * Configure log rotation settings.
+ * - LOG_MAX_SIZE: Maximum size of a single log file (e.g., "10m", "100m")
+ * - LOG_MAX_FILES: Number of log files to retain before deleting older ones (e.g., "7" for 7 days)
+ */
+const LOG_DIR = path.join(process.cwd(), "backend", "logs");
+const LOG_MAX_SIZE = config.LOG_MAX_SIZE || "10m";
+const LOG_MAX_FILES = parseInt(config.LOG_MAX_FILES, 10) || 7;
+
+// Ensure logs directory exists
+try {
+  mkdirSync(LOG_DIR, { recursive: true });
+} catch (err) {
+  // Directory may already exist
+}
+
+const transports: winston.transport[] = [new winston.transports.Console()];
+
+// Add daily rotation file transport in production
+if (isProd) {
+  transports.push(
+    new DailyRotateFile({
+      filename: path.join(LOG_DIR, "app-%DATE%.log"),
+      datePattern: "YYYY-MM-DD",
+      maxSize: LOG_MAX_SIZE,
+      maxFiles: LOG_MAX_FILES,
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      ),
+    })
+  );
+}
 
 const logger = winston.createLogger({
   level: config.LOG_LEVEL,
@@ -22,7 +60,7 @@ const logger = winston.createLogger({
         })
       ),
   defaultMeta: { service: "stellarkraal-api" },
-  transports: [new winston.transports.Console()],
+  transports,
 });
 
 /**

@@ -585,3 +585,135 @@ export function insertLiquidationEvent(
 export function getLiquidationEvents(loan_id: string): LiquidationEvent[] {
   return [...liquidationEventTable.values()].filter((e) => e.loan_id === loan_id);
 }
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+
+export interface AuditEntry {
+  id: string;
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId: string;
+  requestBody?: unknown;
+  ip?: string;
+  timestamp: string;
+}
+
+const auditTable: Map<string, AuditEntry> = new Map();
+
+/**
+ * Insert an audit log entry.
+ * @param data - Audit entry fields excluding `id` and `timestamp`.
+ * @returns The created {@link AuditEntry}.
+ */
+export function insertAuditEntry(
+  data: Omit<AuditEntry, 'id' | 'timestamp'>
+): AuditEntry {
+  const id = `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const record: AuditEntry = { ...data, id, timestamp: new Date().toISOString() };
+  auditTable.set(id, record);
+  return record;
+}
+
+/**
+ * List audit entries with optional filtering and pagination.
+ * @param filters - Optional filter and pagination options.
+ * @param filters.userId - Filter by user ID.
+ * @param filters.action - Filter by action.
+ * @param filters.resource - Filter by resource type.
+ * @param filters.from - Filter by start timestamp (ISO string).
+ * @param filters.to - Filter by end timestamp (ISO string).
+ * @param filters.page - Page number (1-indexed, default 1).
+ * @param filters.limit - Records per page (default 20, max 100).
+ * @returns Paginated result with `data`, `total`, `page`, and `limit`.
+ */
+export function listAuditEntries(filters?: {
+  userId?: string;
+  action?: string;
+  resource?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}): { data: AuditEntry[]; total: number; page: number; limit: number } {
+  const limit = Math.min(filters?.limit || 20, 100);
+  const page = Math.max(filters?.page || 1, 1);
+
+  let results = [...auditTable.values()];
+
+  if (filters?.userId) results = results.filter((a) => a.userId === filters.userId);
+  if (filters?.action) results = results.filter((a) => a.action === filters.action);
+  if (filters?.resource) results = results.filter((a) => a.resource === filters.resource);
+  if (filters?.from)
+    results = results.filter((a) => new Date(a.timestamp) >= new Date(filters.from!));
+  if (filters?.to)
+    results = results.filter((a) => new Date(a.timestamp) <= new Date(filters.to!));
+
+  // Sort by timestamp descending (newest first)
+  results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const total = results.length;
+  const start = (page - 1) * limit;
+  const data = results.slice(start, start + limit);
+
+  return { data, total, page, limit };
+}
+
+// ── User Profiles ─────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  walletAddress: string;
+  displayName?: string;
+  notificationPreferences?: {
+    loanApproved?: boolean;
+    loanRepaid?: boolean;
+    liquidationWarning?: boolean;
+    loanDisbursed?: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+const profileTable: Map<string, UserProfile> = new Map();
+
+/**
+ * Get a user profile by wallet address.
+ * @param walletAddress - Stellar wallet address.
+ * @returns The {@link UserProfile} or `undefined` if not found.
+ */
+export function getProfile(walletAddress: string): UserProfile | undefined {
+  return profileTable.get(walletAddress);
+}
+
+/**
+ * Create or update a user profile.
+ * @param walletAddress - Stellar wallet address.
+ * @param updates - Profile fields to set or update.
+ * @returns The created or updated {@link UserProfile}.
+ */
+export function updateProfile(
+  walletAddress: string,
+  updates: Partial<Omit<UserProfile, 'walletAddress' | 'createdAt'>>
+): UserProfile {
+  const existing = profileTable.get(walletAddress);
+  const now = new Date().toISOString();
+
+  if (existing) {
+    const updated: UserProfile = {
+      ...existing,
+      ...updates,
+      updatedAt: now,
+    };
+    profileTable.set(walletAddress, updated);
+    return updated;
+  }
+
+  const profile: UserProfile = {
+    walletAddress,
+    createdAt: now,
+    updatedAt: now,
+    ...updates,
+  };
+  profileTable.set(walletAddress, profile);
+  return profile;
+}

@@ -4,6 +4,7 @@ import { rules } from "./alertRules";
 import { pool } from "./connectionPool";
 import logger from "./logger";
 import { getCorrelationId } from "./correlationContext";
+import { getAccountFromHorizon, isHorizonConfigured } from "./horizonClient";
 
 /**
  * Circuit breaker options:
@@ -33,7 +34,34 @@ const rpcMethods = {
   getAccount: async (address: string) => {
     const correlationId = getCorrelationId();
     logger.debug("RPC getAccount", { address, correlationId });
-    return pool.run((server) => server.getAccount(address));
+
+    try {
+      return await pool.run((server) => server.getAccount(address));
+    } catch (error) {
+      // Try Horizon as fallback if Soroban RPC fails and Horizon is configured
+      if (isHorizonConfigured()) {
+        logger.info("Soroban RPC getAccount failed, trying Horizon fallback", {
+          address,
+          correlationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        try {
+          return await getAccountFromHorizon(address);
+        } catch (horizonError) {
+          logger.error("Both Soroban RPC and Horizon failed for getAccount", {
+            address,
+            correlationId,
+            sorobanError: error instanceof Error ? error.message : String(error),
+            horizonError: horizonError instanceof Error ? horizonError.message : String(horizonError),
+          });
+          throw error; // Re-throw original Soroban error
+        }
+      }
+
+      // No fallback available, re-throw original error
+      throw error;
+    }
   },
 
   prepareTransaction: async (tx: any) => {
