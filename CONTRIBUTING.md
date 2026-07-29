@@ -120,6 +120,122 @@ Remove any packages flagged as unused before opening a PR. This keeps install ti
 
 ---
 
+## Smart Contract Changes
+
+The on-chain logic lives in `contracts/stellarkraal/` and is written in Rust using the
+[Soroban SDK](https://developers.stellar.org/docs/tools/sdks/library-sdk).
+
+### Rust Toolchain Setup
+
+The contract pins a specific toolchain in `contracts/stellarkraal/rust-toolchain.toml`. Rust will
+automatically download and activate the correct version when you run any Cargo command inside the
+contract directory.
+
+```bash
+# Install rustup if you do not have it
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Add the WebAssembly target (required to build a Soroban contract)
+rustup target add wasm32-unknown-unknown
+
+# Install stellar-cli (version 22+ required)
+cargo install --locked stellar-cli --features opt
+```
+
+Verify your setup:
+
+```bash
+rustc --version      # should match rust-toolchain.toml
+stellar --version    # should be 22.x or higher
+```
+
+### Running Contract Tests
+
+```bash
+cd contracts/stellarkraal
+
+# Unit and integration tests (no network required)
+cargo test
+
+# With output visible on failures
+cargo test -- --nocapture
+
+# Run a specific test
+cargo test test_register_collateral
+```
+
+All tests must pass before opening a PR. CI runs `cargo test` via
+`.github/workflows/rust-ci.yml`.
+
+### Building the WASM
+
+```bash
+cd contracts/stellarkraal
+
+# Debug build (fast, larger file)
+cargo build --target wasm32-unknown-unknown
+
+# Release build (optimised, required for deployment)
+stellar contract build
+```
+
+The optimised WASM is written to
+`contracts/stellarkraal/target/wasm32-unknown-unknown/release/stellarkraal.wasm`.
+
+### When an ADR Is Required
+
+Open an [Architecture Decision Record](docs/adr/) in `docs/adr/` whenever a contract change:
+
+- Alters the public ABI (adds, removes, or changes the signature of any `#[contractimpl]` function)
+- Changes persistent storage layout (adds or renames a `DataKey` variant)
+- Introduces a new oracle, price feed, or liquidation mechanism
+- Modifies governance or admin controls (pause, upgrade, admin transfer)
+- Involves a breaking protocol change that requires a migration guide
+
+Copy `docs/adr/template.md`, increment the number, fill in all sections, and add a row to the ADR
+table in `README.md`. Reference the ADR in your PR description.
+
+For non-breaking additions (new error codes, comment changes, test improvements) an ADR is not
+required, but a clear PR description is expected.
+
+### Deploy to Testnet
+
+> See [Contract Deployment Guide](docs/deployment/contract-deployment.md) for the full step-by-step.
+
+Quick reference:
+
+```bash
+# Generate a deployer identity (only needed once)
+stellar keys generate deployer --network testnet
+
+# Fund via Friendbot
+curl "https://friendbot.stellar.org?addr=$(stellar keys address deployer)"
+
+# Build the optimised WASM
+stellar contract build
+
+# Deploy
+stellar contract deploy \
+  --wasm contracts/stellarkraal/target/wasm32-unknown-unknown/release/stellarkraal.wasm \
+  --source deployer \
+  --network testnet
+```
+
+The command prints a `CONTRACT_ID`. Set `CONTRACT_ID=<value>` in your backend `.env` to point
+the local stack at the newly deployed contract.
+
+Testnet state is reset periodically by Stellar. Always test on testnet before proposing mainnet
+deployments. Mainnet deployments require an additional review gate; see the deployment guide.
+
+### Soroban SDK Documentation
+
+- [Soroban SDK (Rust)](https://docs.rs/soroban-sdk/latest/soroban_sdk/)
+- [Stellar Developer Docs — Smart Contracts](https://developers.stellar.org/docs/smart-contracts)
+- [Soroban Examples](https://github.com/stellar/soroban-examples)
+- [Stellar CLI Reference](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli)
+
+---
+
 ## Reviewer Checklist
 
 Before approving a pull request, reviewers should confirm:

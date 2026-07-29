@@ -94,13 +94,29 @@ Full documentation: [Loan State Machine](docs/protocol/loan-state-machine.md)
 
 ## Local Development
 
+> For a detailed, platform-specific walkthrough see **[docs/development/local-setup.md](docs/development/local-setup.md)**.
+
 ### Prerequisites
 
-- Node.js 20+
-- npm
-- Docker & Docker Compose (for containerized setup)
-- Rust toolchain and `stellar-cli` for contract work
-- Freighter browser extension for wallet integration
+Ensure the following minimum versions are installed before you begin:
+
+| Tool | Minimum version | Install |
+|------|-----------------|---------|
+| Node.js | **20.x** | [nodejs.org](https://nodejs.org/) or `nvm install 20` |
+| npm | **10.x** (bundled with Node 20) | — |
+| Rust | **1.78+** | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| stellar-cli | **22+** | `cargo install --locked stellar-cli --features opt` |
+| Docker & Docker Compose | **24+** (optional, for containerised setup) | [docs.docker.com](https://docs.docker.com/get-docker/) |
+| Freighter | latest | [freighter.app](https://www.freighter.app/) (browser extension) |
+
+Verify your environment:
+
+```bash
+node --version   # v20.x or higher
+npm --version    # 10.x or higher
+rustc --version  # 1.78.x or higher
+stellar --version # 22.x or higher
+```
 
 ### Clone and setup
 
@@ -159,6 +175,23 @@ npm run dev
 cd contracts/stellarkraal
 cargo test
 ```
+
+### Common Setup Errors
+
+| Symptom | Cause | Resolution |
+|---------|-------|------------|
+| `nvm: command not found` | nvm not installed | Install via [nvm install guide](https://github.com/nvm-sh/nvm#installing-and-updating), then `nvm install 20` |
+| `npm ERR! code ERESOLVE` | Node version mismatch | Ensure Node.js 20+ (`node --version`). Delete `node_modules` and re-run `npm install`. |
+| `sqlite3` build error | Missing native build tools | Run `npm rebuild sqlite3` after installing system build tools (see [local-setup.md](docs/development/local-setup.md)) |
+| `stellar: command not found` | `~/.cargo/bin` not in PATH | Add `export PATH="$HOME/.cargo/bin:$PATH"` to your shell profile |
+| `error[E0463]: can't find crate` | Wrong Rust toolchain | Run `rustup target add wasm32-unknown-unknown` inside `contracts/stellarkraal/` |
+| `PORT already in use` | Port 3001 occupied | Stop the conflicting process or set a different `PORT` in `.env` |
+| `Cannot connect to RPC_URL` | Network or config error | Verify `RPC_URL` in `.env` and network connectivity |
+| CORS errors from frontend | `FRONTEND_URL` not set | Set `FRONTEND_URL=http://localhost:3000` in your backend `.env` |
+
+For a comprehensive troubleshooting guide including Docker, contract, and database errors, see
+**[docs/troubleshooting.md](docs/troubleshooting.md)** or the platform-specific notes in
+**[docs/development/local-setup.md](docs/development/local-setup.md)**.
 
 ## Staging Environment
 
@@ -262,6 +295,7 @@ npm run test:frontend
 |---|---|
 | [Loan State Machine](docs/protocol/loan-state-machine.md) | All loan states, valid transitions, triggering events, and on-chain event mapping |
 | [API Quickstart](docs/guides/api-quickstart.md) | Base URL, auth flow, and common `/api/v1` operations |
+| [Freighter Wallet Integration](docs/guides/freighter-integration.md) | `freighterClient.ts` API, connect/sign/disconnect flow, mock API for testing, and network mismatch detection |
 | [Rate limits](docs/guides/rate-limits.md) | Global, auth, read, and write tiers; headers and retry behavior |
 | [Liquidation Mechanism](docs/protocol/liquidation.md) | Health factor formula, liquidation threshold, partial liquidation examples |
 | [Smart Contract Interface](docs/contracts/stellarkraal-interface.md) | Soroban contract public API, error codes, state changes, and CLI invocation guide |
