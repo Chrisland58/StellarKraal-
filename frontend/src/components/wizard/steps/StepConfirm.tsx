@@ -115,12 +115,13 @@ export default function StepConfirm({ walletAddress }: Props) {
       <div>
         <h2 className="text-2xl font-bold text-brown">Final Summary</h2>
         <p className="text-brown/60 mt-1 text-sm">
-          This is your last chance to review before the transaction is signed.
+          This is a read-only review. Please check every detail before signing — it cannot be
+          changed once submitted.
         </p>
       </div>
 
-      {/* Summary card */}
-      <div className="bg-cream border-2 border-brown/20 rounded-2xl p-5 space-y-3">
+      {/* Read-only summary card */}
+      <div className="bg-cream border-2 border-brown/20 rounded-2xl p-5 space-y-3" aria-label="Loan summary">
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs text-brown/50 uppercase tracking-wider font-medium">
@@ -138,6 +139,27 @@ export default function StepConfirm({ walletAddress }: Props) {
             </p>
           </div>
         </div>
+
+        <dl className="border-t border-brown/10 pt-3 space-y-2 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-brown/50">Collateral ID</dt>
+            <dd className="font-medium text-brown font-mono">{collateralId}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-brown/50">Borrower wallet</dt>
+            <dd className="font-medium text-brown font-mono truncate max-w-[60%]" title={walletAddress}>
+              {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-brown/50">Loan term</dt>
+            <dd className="font-medium text-brown">{loanTermDays} days</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-brown/50">Interest rate</dt>
+            <dd className="font-medium text-brown">{rate}</dd>
+          </div>
+        </dl>
 
         <div className="border-t border-brown/10 pt-3 grid grid-cols-3 gap-3 text-center">
           <div>

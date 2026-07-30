@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Card from '@/components/Card';
 import SkeletonCollateralCard from '@/components/SkeletonCollateralCard';
 import EmptyState from '@/components/EmptyState';
-import { healthColor } from '@/lib/design-tokens';
+import { healthColor, healthTier, HEALTH_TIER_ICON, HEALTH_TIER_LABEL } from '@/lib/design-tokens';
 
 interface Collateral {
   id: string;

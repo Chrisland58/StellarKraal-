@@ -197,7 +197,24 @@ describe("CollateralGrid", () => {
       render(
         <CollateralGrid collaterals={[withHealth]} loading={false} onCardClick={jest.fn()} />
       );
-      expect(screen.getByText("Loan health: 1.55")).toBeTruthy();
+      expect(screen.getByText("Loan health: 1.55 (Safe)")).toBeTruthy();
+    });
+
+    it("shows a non-colour icon so tier is distinguishable without colour (#colour-blind-a11y)", () => {
+      const healthy = makeCollateral({ id: "col-icon-safe", health_factor_bps: 18000 });
+      const warning = makeCollateral({ id: "col-icon-warn", health_factor_bps: 12000 });
+      const danger = makeCollateral({ id: "col-icon-danger", health_factor_bps: 5000 });
+
+      const { rerender } = render(
+        <CollateralGrid collaterals={[healthy]} loading={false} onCardClick={jest.fn()} />
+      );
+      expect(screen.getByText("✓")).toBeTruthy();
+
+      rerender(<CollateralGrid collaterals={[warning]} loading={false} onCardClick={jest.fn()} />);
+      expect(screen.getByText("!")).toBeTruthy();
+
+      rerender(<CollateralGrid collaterals={[danger]} loading={false} onCardClick={jest.fn()} />);
+      expect(screen.getByText("✕")).toBeTruthy();
     });
   });
 

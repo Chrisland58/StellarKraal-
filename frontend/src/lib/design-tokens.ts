@@ -99,6 +99,27 @@ export function getContrastPair(background: 'light' | 'dark' = 'light') {
 // Health factor colors with proper contrast
 export function healthColor(value: number): string {
   if (value >= 15000) return '#16A34A'; // success.DEFAULT - 4.54:1 on white
-  if (value >= 10000) return '#D97706'; // warning.DEFAULT - 4.52:1 on white  
+  if (value >= 10000) return '#D97706'; // warning.DEFAULT - 4.52:1 on white
   return '#DC2626'; // error.DEFAULT - 5.25:1 on white
 }
+
+// Non-color indicators so health status is distinguishable without relying on colour perception
+export type HealthTier = 'safe' | 'warning' | 'danger';
+
+export function healthTier(value: number): HealthTier {
+  if (value >= 15000) return 'safe';
+  if (value >= 10000) return 'warning';
+  return 'danger';
+}
+
+export const HEALTH_TIER_ICON: Record<HealthTier, string> = {
+  safe: '✓',
+  warning: '!',
+  danger: '✕',
+};
+
+export const HEALTH_TIER_LABEL: Record<HealthTier, string> = {
+  safe: 'Safe',
+  warning: 'Warning',
+  danger: 'Danger',
+};

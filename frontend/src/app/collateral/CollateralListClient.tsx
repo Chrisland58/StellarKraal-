@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SearchFilterBar from "@/components/SearchFilterBar";
+import HighlightText from "@/components/HighlightText";
 import PageTransition from "@/components/PageTransition";
 import { useScrollPosition } from "@/hooks/useScrollPosition";
 
@@ -64,13 +65,17 @@ function CollateralListContent() {
             >
               <div>
                 <p className="font-semibold text-brown text-sm capitalize">
-                  {col.animal_type} — {col.count} head
+                  <HighlightText text={col.animal_type} query={q} /> — {col.count} head
                 </p>
-                <p className="text-xs text-brown/60 truncate max-w-xs">{col.owner}</p>
+                <p className="text-xs text-brown/60 truncate max-w-xs">
+                  <HighlightText text={col.owner} query={q} />
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-brown">{col.appraised_value.toLocaleString()}</p>
-                <p className="text-xs text-brown/50">ID: {col.id}</p>
+                <p className="text-xs text-brown/50">
+                  ID: <HighlightText text={col.id} query={q} />
+                </p>
               </div>
             </li>
           ))}
