@@ -16,6 +16,7 @@ interface TooltipState {
 interface Props {
   value: number;          // current bps value (single-point mode)
   history?: DataPoint[];  // optional time-series for chart mode
+  loading?: boolean;      // when true, renders skeleton placeholder
 }
 
 function formatDate(iso: string) {
@@ -234,7 +235,64 @@ const ZONES = [
   { start: 0.75, end: 1, color: '#16A34A', label: 'Safe' },
 ];
 
-export default function HealthGauge({ value }: Props) {
+/**
+ * SkeletonHealthGauge — arc-shaped skeleton placeholder.
+ * Matches the live gauge dimensions exactly (viewBox "20 20 160 90").
+ */
+export function SkeletonHealthGauge() {
+  return (
+    <div
+      className="flex flex-col items-center w-full"
+      aria-busy="true"
+      aria-label="Loading health gauge"
+      data-testid="health-gauge-skeleton"
+    >
+      <svg viewBox="20 20 160 90" className="w-full max-w-xs" aria-hidden="true">
+        {/* Background track skeleton */}
+        <path
+          d={arcPath(180, 0)}
+          fill="none"
+          strokeWidth={STROKE}
+          strokeLinecap="round"
+          className="skeleton-shimmer"
+          style={{ stroke: 'var(--color-skeleton-base)' }}
+        />
+        {/* Needle placeholder */}
+        <line
+          x1={CX}
+          y1={CY}
+          x2={CX}
+          y2={CY - (R - STROKE / 2)}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          style={{ stroke: 'var(--color-skeleton-base)' }}
+        />
+        <circle cx={CX} cy={CY} r={5} style={{ fill: 'var(--color-skeleton-base)' }} />
+        {/* Value text placeholder */}
+        <rect
+          x={CX - 18}
+          y={CY + 9}
+          width={36}
+          height={12}
+          rx={4}
+          className="skeleton-shimmer"
+          style={{ fill: 'var(--color-skeleton-base)' }}
+        />
+      </svg>
+      {/* Label placeholder */}
+      <div
+        className="skeleton-shimmer mt-1 rounded"
+        style={{ width: '3.5rem', height: '1rem', background: 'var(--color-skeleton-base)' }}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+export default function HealthGauge({ value, history, loading }: Props) {
+  if (loading) {
+    return <SkeletonHealthGauge />;
+  }
   const frac = Math.min(value / 20_000, 1); // cap at 200% (2.0x)
   const displayValue = (value / 10_000).toFixed(2);
   const color = healthColor(value);
@@ -339,6 +397,9 @@ export default function HealthGauge({ value }: Props) {
       <span className="text-sm font-semibold mt-1" style={{ color }}>
         {label}
       </span>
+
+      {/* Optional history chart */}
+      {history && history.length > 0 && <HistoryChart history={history} />}
     </div>
   );
 }
