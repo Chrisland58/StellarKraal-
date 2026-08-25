@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { PriceChart } from "@/components/PriceChart";
 import ErrorState from "@/components/ErrorState";
+import DetailSkeleton from "@/components/DetailSkeleton";
 
 interface AppraisalEntry {
   date: string;
@@ -114,7 +116,18 @@ export default function CollateralDetailPage() {
       {/* Animal profile */}
       <div className="bg-white rounded-2xl p-6 shadow mb-6 flex gap-6 items-start">
         {record.photo_url ? (
-          <img src={record.photo_url} alt={record.animal_type} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+          <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
+            <Image
+              src={record.photo_url}
+              alt={`${record.animal_type} collateral photo`}
+              fill
+              sizes="(max-width: 640px) 96px, 96px"
+              className="object-cover"
+              loading="lazy"
+              placeholder="blur"
+              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI0YwRDlCOCIvPjwvc3ZnPg=="
+            />
+          </div>
         ) : (
           <div className="w-24 h-24 rounded-xl bg-cream flex items-center justify-center text-4xl flex-shrink-0">
             {record.animal_type.toLowerCase().includes("goat") ? "🐐" : record.animal_type.toLowerCase().includes("sheep") ? "🐑" : "🐄"}
