@@ -2,6 +2,8 @@
 
 Design tokens are the single source of truth for the visual language of StellarKraal. This guide explains how to use, understand, and extend design tokens.
 
+> **Live reference:** The [Color Palette page](/docs/colors) (accessible from the Admin sidebar → *Color Palette*) shows all semantic tokens as live swatches with their CSS variable names, usage examples, and WCAG contrast ratios. Admin login required.
+
 ## Overview
 
 Design tokens are defined in `frontend/src/lib/design-tokens.ts` and exported as JavaScript objects. They include:

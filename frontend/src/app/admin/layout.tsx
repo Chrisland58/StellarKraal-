@@ -11,6 +11,7 @@ const adminNav = [
   { label: 'Users', href: '/admin/users' },
   { label: 'Reports', href: '/admin/reports' },
   { label: 'Liquidators', href: '/admin/liquidators' },
+  { label: 'Color Palette', href: '/docs/colors' },
 ];
 
 interface AdminRootLayoutProps {

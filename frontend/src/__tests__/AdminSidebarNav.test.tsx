@@ -64,4 +64,17 @@ describe('AdminSidebarNav', () => {
       expect(moderationLink).toHaveClass('border-gold');
     });
   });
+
+  it('renders Color Palette link when present in items', async () => {
+    const itemsWithPalette = [
+      ...mockItems,
+      { label: 'Color Palette', href: '/docs/colors' },
+    ];
+    render(<AdminSidebarNav items={itemsWithPalette} />);
+
+    await waitFor(() => {
+      const paletteLink = screen.getByText('Color Palette').closest('a');
+      expect(paletteLink).toHaveAttribute('href', '/docs/colors');
+    });
+  });
 });
