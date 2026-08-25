@@ -87,6 +87,12 @@ const rpcMethods = {
     logger.debug("RPC getTransaction", { hash, correlationId });
     return pool.run((server) => server.getTransaction(hash));
   },
+
+  sendTransaction: async (tx: any) => {
+    const correlationId = getCorrelationId();
+    logger.debug("RPC sendTransaction", { correlationId });
+    return pool.run((server) => server.sendTransaction(tx));
+  },
 };
 
 /**
@@ -112,6 +118,10 @@ const getTransactionBreaker = new CircuitBreaker(
   rpcMethods.getTransaction,
   circuitBreakerOptions
 );
+const sendTransactionBreaker = new CircuitBreaker(
+  rpcMethods.sendTransaction,
+  circuitBreakerOptions
+);
 
 // Circuit breaker event logging + alerting
 [
@@ -120,6 +130,7 @@ const getTransactionBreaker = new CircuitBreaker(
   simulateTransactionBreaker,
   getHealthBreaker,
   getTransactionBreaker,
+  sendTransactionBreaker,
 ].forEach((breaker) => {
   breaker.on("open", () => {
     logger.error("Circuit breaker opened", { breaker: breaker.name, correlationId: getCorrelationId() });
@@ -155,6 +166,7 @@ export const rpcClient = {
   simulateTransaction: (tx: any) => simulateTransactionBreaker.fire(tx),
   getHealth: () => getHealthBreaker.fire(),
   getTransaction: (hash: string) => getTransactionBreaker.fire(hash),
+  sendTransaction: (tx: any) => sendTransactionBreaker.fire(tx),
 
   /**
    * Get circuit breaker states for health check.
@@ -166,6 +178,7 @@ export const rpcClient = {
     simulateTransaction: simulateTransactionBreaker.opened ? "open" : "closed",
     getHealth: getHealthBreaker.opened ? "open" : "closed",
     getTransaction: getTransactionBreaker.opened ? "open" : "closed",
+    sendTransaction: sendTransactionBreaker.opened ? "open" : "closed",
   }),
 
   /**
@@ -178,7 +191,8 @@ export const rpcClient = {
       !prepareTransactionBreaker.opened &&
       !simulateTransactionBreaker.opened &&
       !getHealthBreaker.opened &&
-      !getTransactionBreaker.opened
+      !getTransactionBreaker.opened &&
+      !sendTransactionBreaker.opened
     );
   },
 };

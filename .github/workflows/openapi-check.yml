@@ -30,6 +30,18 @@ jobs:
       - name: Validate OpenAPI 3.0 spec (strict)
         run: npx --yes @redocly/cli@1.x lint --extends=recommended backend/openapi.json
 
+      - name: Verify openapi.json is up-to-date with code annotations
+        run: |
+          cd backend
+          npm ci --legacy-peer-deps
+          npm run openapi:generate
+          if [ -n "$(git status --porcelain openapi.json)" ]; then
+            echo "ERROR: openapi.json is stale or out of sync with code annotations. Run 'npm run openapi:generate' in backend directory and commit."
+            git diff openapi.json
+            exit 1
+          fi
+          echo "openapi.json is up-to-date"
+
       - name: Verify info.version matches package.json
         run: |
           PKG_VERSION=$(node -p "require('./backend/package.json').version")

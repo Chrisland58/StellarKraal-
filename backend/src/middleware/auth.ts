@@ -99,15 +99,99 @@ function setRefreshCookie(res: Response, rawToken: string): void {
 
 export const authRouter = Router();
 
-// GET /api/auth/challenge — issue a one-time challenge
+/**
+ * @openapi
+ * /auth/challenge:
+ *   get:
+ *     tags:
+ *       - auth
+ *     summary: Get a one-time challenge
+ *     description: Returns a random hex challenge string. The client must sign it with their Stellar keypair and submit it to POST /auth/login.
+ *     operationId: getChallenge
+ *     security: []
+ *     responses:
+ *       '200':
+ *         description: Challenge issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: Object containing the hex challenge string.
+ *               properties:
+ *                 challenge:
+ *                   type: string
+ *                   description: Random hex challenge string
+ *                   example: a3f9...
+ */
 authRouter.get('/challenge', (_req: Request, res: Response) => {
   const challenge = randomBytes(32).toString('hex');
   challenges.set(challenge, Date.now() + CHALLENGE_TTL_MS);
   res.json({ challenge });
 });
 
-// POST /api/auth/login — verify Stellar wallet signature, issue JWT
-// Accepts { walletAddress, signedChallenge: { nonce, signature } }
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags:
+ *       - auth
+ *     summary: Login with Stellar signature
+ *     description: Verifies the ed25519 signature over the challenge. Returns a short-lived JWT access token (15 min) and a refresh token.
+ *     operationId: login
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       description: Stellar public key, hex-encoded ed25519 signature, and the challenge string obtained from GET /auth/challenge.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Login request payload.
+ *             required:
+ *               - walletAddress
+ *               - signedChallenge
+ *             properties:
+ *               walletAddress:
+ *                 type: string
+ *                 description: Stellar G... public key
+ *                 example: GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN
+ *               signedChallenge:
+ *                 type: object
+ *                 description: Signed challenge nonce and ed25519 signature
+ *                 required:
+ *                   - nonce
+ *                   - signature
+ *                 properties:
+ *                   nonce:
+ *                     type: string
+ *                     description: Nonce string obtained from challenge
+ *                     example: a3f9...
+ *                   signature:
+ *                     type: string
+ *                     description: Hex-encoded ed25519 signature
+ *                     example: b4c8...
+ *     responses:
+ *       '200':
+ *         description: JWT issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: Access token and expiry payload.
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: JWT access token
+ *                   example: eyJhbGci...
+ *                 expiresIn:
+ *                   type: integer
+ *                   description: Access token validity period in seconds
+ *                   example: 900
+ *       '400':
+ *         $ref: '#/components/responses/ValidationError'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
+ */
 authRouter.post('/login', (req: Request, res: Response) => {
   const { walletAddress, signedChallenge } = req.body as {
     walletAddress?: string;
@@ -144,15 +228,36 @@ authRouter.post('/login', (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/v1/auth/refresh — rotate refresh token using httpOnly cookie.
- *
- * Reads the refresh token from the `refreshToken` httpOnly cookie.
- * Validates the hash against the stored entry, invalidates the old token,
- * and issues a new access token + rotated refresh token cookie.
- *
- * @returns { accessToken, expiresIn } on success.
- * @returns 400 if the cookie is missing.
- * @returns 401 if the token is invalid, revoked, or expired.
+ * @openapi
+ * /auth/refresh:
+ *   post:
+ *     tags:
+ *       - auth
+ *     summary: Rotate refresh token
+ *     description: Reads the refresh token from the refreshToken httpOnly cookie, validates it, and issues a new access token and rotated cookie.
+ *     operationId: refreshToken
+ *     security: []
+ *     responses:
+ *       '200':
+ *         description: Token rotated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: New access token payload.
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: JWT access token
+ *                   example: eyJhbGci...
+ *                 expiresIn:
+ *                   type: integer
+ *                   description: Access token validity in seconds
+ *                   example: 900
+ *       '400':
+ *         $ref: '#/components/responses/ValidationError'
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
  */
 authRouter.post('/refresh', (req: Request, res: Response) => {
   const cookieHeader = req.headers.cookie ?? '';

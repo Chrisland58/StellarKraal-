@@ -161,6 +161,17 @@ npm run build
 npm start
 ```
 
+#### OpenAPI Specification Generation
+
+To auto-generate `openapi.json` from in-code `@openapi` route annotations:
+
+```bash
+cd backend
+npm run openapi:generate
+```
+
+This scans all annotated route handlers, generates `backend/openapi.json`, and updates the spec version to match `package.json`. CI automatically verifies that `openapi.json` is not stale.
+
 #### Frontend
 
 ```bash

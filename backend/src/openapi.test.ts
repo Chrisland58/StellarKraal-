@@ -239,7 +239,7 @@ describe("openapi.json", () => {
 
   describe("error responses use $ref to component responses", () => {
     it("uses $ref for standard error responses", () => {
-      const specStr = JSON.stringify(spec);
+      const specStr = JSON.stringify(spec, null, 2);
       // Verify that error responses reference component responses
       expect(specStr).toContain('"$ref": "#/components/responses/ValidationError"');
       expect(specStr).toContain('"$ref": "#/components/responses/Unauthorized"');
