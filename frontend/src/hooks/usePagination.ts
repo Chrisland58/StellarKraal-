@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
-export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export interface PaginationState {

@@ -86,8 +86,8 @@ describe('Pagination component', () => {
   it('calls onLimitChange when page size is changed', () => {
     const onLimitChange = jest.fn();
     render(<Pagination {...defaultProps} onLimitChange={onLimitChange} />);
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '25' } });
-    expect(onLimitChange).toHaveBeenCalledWith(25);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '20' } });
+    expect(onLimitChange).toHaveBeenCalledWith(20);
   });
 
   it('has accessible nav landmark', () => {
@@ -105,10 +105,10 @@ describe('usePagination hook', () => {
   });
 
   it('reads page and limit from URL params', () => {
-    setParams({ page: '3', limit: '25' });
+    setParams({ page: '3', limit: '20' });
     const { result } = renderHook(() => usePagination(100));
     expect(result.current.page).toBe(3);
-    expect(result.current.limit).toBe(25);
+    expect(result.current.limit).toBe(20);
   });
 
   it('clamps page to totalPages when URL page exceeds total', () => {
@@ -158,10 +158,10 @@ describe('usePagination hook', () => {
     setParams({ page: '4' });
     const { result } = renderHook(() => usePagination(100));
     act(() => {
-      result.current.setLimit(25);
+      result.current.setLimit(20);
     });
     const url = mockPush.mock.calls[0][0] as string;
-    expect(url).toContain('limit=25');
+    expect(url).toContain('limit=20');
     expect(url).toContain('page=1');
   });
 
