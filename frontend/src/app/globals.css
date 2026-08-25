@@ -346,3 +346,48 @@ body {
     outline-offset: 2px;
   }
 }
+
+/* ── Density tokens (#816) ────────────────────────────────────────────────────
+   Applied as data-density on <html> via useDensity hook.
+   All list views, tables, and cards should use these tokens for padding and
+   font size instead of hard-coded Tailwind classes wherever density matters.
+*/
+
+/* Default (comfortable) */
+:root {
+  --density-cell-py: 0.75rem;   /* vertical cell padding */
+  --density-cell-px: 1rem;      /* horizontal cell padding */
+  --density-row-gap: 0.75rem;   /* gap between rows in lists */
+  --density-font-size: 0.875rem; /* table / list body text */
+}
+
+/* Compact: tighter padding, smaller text */
+[data-density="compact"] {
+  --density-cell-py: 0.375rem;
+  --density-cell-px: 0.625rem;
+  --density-row-gap: 0.375rem;
+  --density-font-size: 0.8125rem;
+}
+
+/* Spacious: extra padding, larger tap targets */
+[data-density="spacious"] {
+  --density-cell-py: 1.25rem;
+  --density-cell-px: 1.5rem;
+  --density-row-gap: 1.25rem;
+  --density-font-size: 1rem;
+}
+
+/* Utility classes that consume the tokens */
+@layer components {
+  .density-cell {
+    padding-top: var(--density-cell-py);
+    padding-bottom: var(--density-cell-py);
+    padding-left: var(--density-cell-px);
+    padding-right: var(--density-cell-px);
+    font-size: var(--density-font-size);
+  }
+
+  .density-row-gap {
+    gap: var(--density-row-gap);
+  }
+}

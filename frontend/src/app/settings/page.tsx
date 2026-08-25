@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import CurrencySettings from "@/components/CurrencySettings";
 import NotificationPreferences from "@/components/NotificationPreferences";
+import DensityToggle from "@/components/DensityToggle";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function SettingsPage() {
       </div>
       <div className="space-y-8">
         <CurrencySettings />
+        <DensityToggle />
         <NotificationPreferences />
       </div>
     </main>

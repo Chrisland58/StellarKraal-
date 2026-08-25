@@ -53,7 +53,7 @@
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.1",
     "ts-jest": "^29.4.12",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3"
   },
   "jest": {
     "testEnvironment": "jsdom",
