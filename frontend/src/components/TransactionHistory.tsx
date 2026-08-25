@@ -158,15 +158,49 @@ export default function TransactionHistory({ walletAddress }: { walletAddress: s
         ))}
       </ul>
 
-      {/* Desktop: table (≥ 640 px) */}
-      <div className="hidden sm:block overflow-hidden">
+      {/* Desktop: table (≥ 640 px) — sticky header within a scrollable container */}
+      <div
+        className="hidden sm:block overflow-auto max-h-[28rem]"
+        role="region"
+        aria-label="Transaction table — scroll to see more rows"
+      >
         <table className="w-full table-fixed border-collapse">
-          <thead>
-            <tr className="border-b border-brown-200 text-left">
-              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Type</th>
-              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Amount</th>
-              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Date</th>
-              <th className="w-1/4 pb-2 text-xs font-semibold uppercase tracking-wide text-brown-500">Status</th>
+          <thead className="sticky top-0 z-10">
+            {/*
+             * The background must be opaque so rows scrolling underneath
+             * don't bleed through. We match the Card background for both
+             * light (white / cream-50) and dark (stone-800) modes.
+             */}
+            <tr className="border-b border-brown-200 dark:border-stone-600 text-left
+                           bg-white dark:bg-stone-800">
+              <th
+                scope="col"
+                className="w-1/4 py-3 pr-4 text-xs font-semibold uppercase tracking-wide
+                           text-brown-500 dark:text-stone-400"
+              >
+                Type
+              </th>
+              <th
+                scope="col"
+                className="w-1/4 py-3 pr-4 text-xs font-semibold uppercase tracking-wide
+                           text-brown-500 dark:text-stone-400"
+              >
+                Amount
+              </th>
+              <th
+                scope="col"
+                className="w-1/4 py-3 pr-4 text-xs font-semibold uppercase tracking-wide
+                           text-brown-500 dark:text-stone-400"
+              >
+                Date
+              </th>
+              <th
+                scope="col"
+                className="w-1/4 py-3 text-xs font-semibold uppercase tracking-wide
+                           text-brown-500 dark:text-stone-400"
+              >
+                Status
+              </th>
             </tr>
           </thead>
           <tbody>

@@ -122,7 +122,7 @@ describe('TransactionHistory', () => {
     });
   });
 
-  it('table has no overflow by using table-fixed and no horizontal scroll wrapper', async () => {
+  it('table wrapper is scrollable (overflow-auto) for sticky header support', async () => {
     setupFetch(mockTransactions);
     const { container } = render(<TransactionHistory walletAddress="GTEST" />);
 
@@ -130,12 +130,77 @@ describe('TransactionHistory', () => {
       expect(screen.getAllByText('Repayment').length).toBeGreaterThan(0);
     });
 
-    // Table wrapper should have overflow-hidden to prevent horizontal scroll
-    const tableWrapper = container.querySelector('.overflow-hidden');
+    // Table wrapper should use overflow-auto to allow scrolling
+    const tableWrapper = container.querySelector('.overflow-auto');
     expect(tableWrapper).not.toBeNull();
 
     // Table should have table-fixed class
     const table = container.querySelector('table');
     expect(table?.className).toContain('table-fixed');
+  });
+
+  it('thead has sticky positioning for sticky header', async () => {
+    setupFetch(mockTransactions);
+    const { container } = render(<TransactionHistory walletAddress="GTEST" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Repayment').length).toBeGreaterThan(0);
+    });
+
+    const thead = container.querySelector('thead');
+    expect(thead?.className).toContain('sticky');
+    expect(thead?.className).toContain('top-0');
+  });
+
+  it('thead has a z-index to stay above scrolling rows', async () => {
+    setupFetch(mockTransactions);
+    const { container } = render(<TransactionHistory walletAddress="GTEST" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Repayment').length).toBeGreaterThan(0);
+    });
+
+    const thead = container.querySelector('thead');
+    expect(thead?.className).toContain('z-10');
+  });
+
+  it('thead header row has opaque background classes for light and dark mode', async () => {
+    setupFetch(mockTransactions);
+    const { container } = render(<TransactionHistory walletAddress="GTEST" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Repayment').length).toBeGreaterThan(0);
+    });
+
+    const headerRow = container.querySelector('thead tr');
+    expect(headerRow?.className).toContain('bg-white');
+    expect(headerRow?.className).toContain('dark:bg-stone-800');
+  });
+
+  it('th elements have scope="col" for accessibility', async () => {
+    setupFetch(mockTransactions);
+    const { container } = render(<TransactionHistory walletAddress="GTEST" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Repayment').length).toBeGreaterThan(0);
+    });
+
+    const headers = container.querySelectorAll('thead th');
+    headers.forEach((th) => {
+      expect(th).toHaveAttribute('scope', 'col');
+    });
+  });
+
+  it('table scroll region has an accessible aria-label', async () => {
+    setupFetch(mockTransactions);
+    const { container } = render(<TransactionHistory walletAddress="GTEST" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Repayment').length).toBeGreaterThan(0);
+    });
+
+    const scrollRegion = container.querySelector('[role="region"]');
+    expect(scrollRegion).not.toBeNull();
+    expect(scrollRegion?.getAttribute('aria-label')).toMatch(/transaction table/i);
   });
 });
