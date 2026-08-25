@@ -14,6 +14,22 @@ module.exports = {
       animation: {
         fadeIn: 'fadeIn 0.6s ease-out both',
       },
+      // ── Spacing scale (#778) ─────────────────────────────────────────────────
+      // Base-4 scale. Use these token names instead of arbitrary px values.
+      // Mirrors the `spacing` export in frontend/src/lib/design-tokens.ts.
+      spacing: {
+        // Keep Tailwind's default scale by spreading a proxy — custom values
+        // are merged on top via `extend`, so all existing Tailwind spacing
+        // utilities (p-4, m-2, gap-8 …) remain available unchanged.
+        'space-1':  '0.25rem',  //  4 px
+        'space-2':  '0.5rem',   //  8 px
+        'space-3':  '0.75rem',  // 12 px
+        'space-4':  '1rem',     // 16 px
+        'space-6':  '1.5rem',   // 24 px
+        'space-8':  '2rem',     // 32 px
+        'space-12': '3rem',     // 48 px
+        'space-16': '4rem',     // 64 px
+      },
       // ── Typography scale (#298) ──────────────────────────────────────────────
       fontSize: {
         // Static (non-fluid) sizes — used directly via Tailwind utilities

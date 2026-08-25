@@ -89,6 +89,24 @@ function analyze() {
     process.exit(1);
   }
 
+  // ── Spacing token check (#778) ────────────────────────────────────────────
+  // Verify that the required spacing scale is defined in tailwind.config.js.
+  const configPath = path.resolve(__dirname, '..', 'tailwind.config.js');
+  const cfg = require(configPath);
+  const spacingConfig = (cfg.theme && cfg.theme.extend && cfg.theme.extend.spacing) || {};
+  const requiredSpacingTokens = [
+    'space-1', 'space-2', 'space-3', 'space-4',
+    'space-6', 'space-8', 'space-12', 'space-16',
+  ];
+  const missingSpacing = requiredSpacingTokens.filter((t) => !(t in spacingConfig));
+  if (missingSpacing.length > 0) {
+    console.error('Spacing token check FAILED — missing tokens in tailwind.config.js:');
+    console.error(missingSpacing);
+    process.exit(2);
+  }
+  console.log(`Spacing token check passed: ${requiredSpacingTokens.length} tokens found.`);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const files = walkDir(src);
   const findings = [];
 

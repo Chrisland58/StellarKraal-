@@ -72,6 +72,39 @@ export const colors = {
   }
 } as const;
 
+// ── Spacing scale (#778) ─────────────────────────────────────────────────────
+// Base-4 scale. Values map to Tailwind spacing keys defined in tailwind.config.js.
+// Use these tokens instead of arbitrary px values to keep spacing consistent.
+//
+//   Token name    px     Tailwind class (example)
+//   space-1       4 px   p-space-1 / gap-space-1 / mt-space-1
+//   space-2       8 px   p-space-2 / gap-space-2
+//   space-3      12 px   …
+//   space-4      16 px
+//   space-6      24 px
+//   space-8      32 px
+//   space-12     48 px
+//   space-16     64 px
+
+export const spacing = {
+  /** 4 px — tight internal padding, icon gaps */
+  space1:  'space-1',
+  /** 8 px — small gaps, badge padding */
+  space2:  'space-2',
+  /** 12 px — inline element padding */
+  space3:  'space-3',
+  /** 16 px — default component padding */
+  space4:  'space-4',
+  /** 24 px — section padding, card inner spacing */
+  space6:  'space-6',
+  /** 32 px — between related sections */
+  space8:  'space-8',
+  /** 48 px — between major page sections */
+  space12: 'space-12',
+  /** 64 px — hero / page-level vertical rhythm */
+  space16: 'space-16',
+} as const;
+
 // ── Typography tokens (#298) ─────────────────────────────────────────────────
 
 export const typography = {
