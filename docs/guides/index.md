@@ -21,6 +21,7 @@ Step-by-step guides for borrowers using the StellarKraal protocol.
 | [Register Collateral (English)](en/register-collateral.md) | English-language collateral registration walkthrough. |
 | [Register Collateral (Swahili)](sw/register-collateral.md) | Swahili-language collateral registration walkthrough. |
 | [Adding a New Animal Type](adding-animal-type.md) | End-to-end process for adding a new supported collateral animal type across contract, backend, and frontend. |
+| [Adding a New Locale](add-locale.md) | Step-by-step guide for adding a new language: locale JSON, plural rules, date formatting, local testing, and the CI missing-key check. |
 | [CHANGELOG Guide](changelog.md) | How to format and place a new `CHANGELOG.md` entry. |
 | [Handling Dependabot PRs](dependabot.md) | Triage, review, and merge process for automated dependency update PRs. |
 | [Load Testing a Live Environment](load-testing.md) | How to load test a deployed (e.g. staging) environment, as opposed to on-chain benchmarks. |
