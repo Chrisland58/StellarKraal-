@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useWizard } from '@/context/LoanWizardContext';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
 import { Button } from '@/components/ui';
@@ -19,6 +20,8 @@ const ANIMAL_EMOJI: Record<string, string> = {
 export default function StepReview() {
   const { animalType, count, appraisedValue, loanAmount, loanTermDays, nextStep, prevStep } =
     useWizard();
+  
+  const [isDetailedView, setIsDetailedView] = useState(false);
 
   const rate = TERM_RATES[loanTermDays] || '5%';
   const rateNum = parseFloat(rate) / 100;
@@ -35,12 +38,12 @@ export default function StepReview() {
       value: `${ANIMAL_EMOJI[animalType]} ${animalType.charAt(0).toUpperCase() + animalType.slice(1)}`,
     },
     { label: 'Animal Count', value: count },
-    { label: 'Appraised Value', value: `${parseInt(appraisedValue).toLocaleString()} stroops` },
-    { label: 'Loan Amount', value: `${parseInt(loanAmount).toLocaleString()} stroops` },
+    { label: 'Appraised Value', value: `${parseInt(appraisedValue || '0').toLocaleString()} stroops` },
+    { label: <GlossaryTerm termKey="loanAmount">Loan Amount</GlossaryTerm>, value: `${parseInt(loanAmount || '0').toLocaleString()} stroops` },
     { label: 'Loan Term', value: `${loanTermDays} days` },
-    { label: 'Fee Rate', value: rate },
+    { label: <GlossaryTerm termKey="feeRate">Fee Rate</GlossaryTerm>, value: rate },
     { label: 'Fee Amount', value: `${fee.toLocaleString()} stroops` },
-    { label: 'Total to Repay', value: `${totalRepay.toLocaleString()} stroops`, bold: true },
+    { label: <GlossaryTerm termKey="repayment">Total to Repay</GlossaryTerm>, value: `${totalRepay.toLocaleString()} stroops`, bold: true },
     {
       label: <GlossaryTerm termKey="healthFactor">Health Factor</GlossaryTerm>,
       value: healthFactor,
@@ -52,28 +55,52 @@ export default function StepReview() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-brown">Review Loan Terms</h2>
-        <p className="text-brown/60 mt-1 text-sm">
-          Please review all details carefully before proceeding.
-        </p>
+        <div className="flex items-center gap-3 mt-2 text-sm text-brown/70 bg-brown/5 inline-flex px-3 py-1.5 rounded-full border border-brown/10">
+          <span className="flex items-center gap-1">⏱ {isDetailedView ? 'About 2 minute read' : 'About 1 minute read'}</span>
+          <span className="w-1 h-1 rounded-full bg-brown/30" />
+          <span className="flex items-center gap-1">📊 {isDetailedView ? 'High complexity' : 'Low complexity'}</span>
+        </div>
+      </div>
+      
+      <div className="flex justify-end">
+        <button 
+          onClick={() => setIsDetailedView(!isDetailedView)}
+          className="text-sm font-semibold text-gold hover:text-gold/80 transition underline underline-offset-2"
+        >
+          {isDetailedView ? 'Show simplified view' : 'Show full terms'}
+        </button>
       </div>
 
-      <div className="bg-white border border-brown/20 rounded-2xl overflow-hidden">
-        {rows.map(({ label, value, bold }, i) => (
-          <div
-            key={typeof label === 'string' ? label : i}
-            className={`flex justify-between items-center px-5 py-3.5 ${
-              i !== rows.length - 1 ? 'border-b border-brown/10' : ''
-            } ${bold ? 'bg-gold/5' : ''}`}
-          >
-            <span className={`text-sm ${bold ? 'font-semibold text-brown' : 'text-brown/60'}`}>
-              {label}
-            </span>
-            <span className={`text-sm ${bold ? 'font-bold text-brown' : 'text-brown'}`}>
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
+      {!isDetailedView ? (
+        <div className="bg-white border border-brown/20 rounded-2xl p-5 space-y-3 shadow-sm">
+          <h3 className="font-semibold text-brown mb-2 text-lg">Loan Summary</h3>
+          <ul className="list-disc pl-5 text-brown/80 space-y-2 text-sm">
+            <li>You are borrowing <strong>{parseInt(loanAmount || '0').toLocaleString()} stroops</strong>.</li>
+            <li>You will use <strong>{count} {animalType}s</strong> as collateral.</li>
+            <li>The loan must be repaid in <strong>{loanTermDays} days</strong>.</li>
+            <li>You will owe a total of <strong>{totalRepay.toLocaleString()} stroops</strong> including fees.</li>
+            <li>If you fail to repay, your collateral may be seized.</li>
+          </ul>
+        </div>
+      ) : (
+        <div className="bg-white border border-brown/20 rounded-2xl overflow-hidden shadow-sm transition-all">
+          {rows.map(({ label, value, bold }, i) => (
+            <div
+              key={typeof label === 'string' ? label : i}
+              className={`flex justify-between items-center px-5 py-3.5 ${
+                i !== rows.length - 1 ? 'border-b border-brown/10' : ''
+              } ${bold ? 'bg-gold/5' : ''}`}
+            >
+              <span className={`text-sm ${bold ? 'font-semibold text-brown' : 'text-brown/60'}`}>
+                {label}
+              </span>
+              <span className={`text-sm ${bold ? 'font-bold text-brown' : 'text-brown'}`}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Risk warning */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex gap-3">

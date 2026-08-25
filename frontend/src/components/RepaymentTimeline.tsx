@@ -52,41 +52,45 @@ export default function RepaymentTimeline({
   };
 
   return (
-    <div className="w-full">
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-4 min-w-min px-2">
+    <div className="w-full max-w-md mx-auto">
+      <div className="relative py-4 px-2">
+        {/* Continuous Vertical Line */}
+        <div className="absolute left-[2.25rem] top-8 bottom-8 w-0.5 bg-brown/10 -ml-px z-0" />
+
+        <div className="flex flex-col gap-8">
           {installments.map((installment, index) => (
-            <div key={index} className="flex flex-col items-center">
+            <div key={index} className="relative flex items-start gap-4 z-10">
               {/* Timeline node */}
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm ${getStatusColor(
                   installment.status
-                )} border-2 border-brown/10 flex-shrink-0`}
+                )} border-2 border-brown/10 flex-shrink-0 bg-white`}
               >
                 {installment.status === 'paid' ? '✓' : index + 1}
               </div>
 
-              {/* Connector line */}
-              {index < installments.length - 1 && <div className="w-0.5 h-8 bg-brown/10 my-2" />}
-
               {/* Card content */}
-              <div className="mt-4 bg-white border border-brown/10 rounded-lg p-3 w-48 shadow-sm">
-                <p className="text-xs font-semibold text-brown/70 mb-1">
-                  {formatDate(installment.date)}
-                </p>
-                <p className="text-lg font-bold text-brown mb-2">
-                  {installment.amount.toFixed(2)} {currency}
-                </p>
-                <div
-                  className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                    installment.status
-                  )}`}
-                >
-                  {getStatusLabel(installment.status)}
+              <div className="flex-1 bg-white border border-brown/10 rounded-lg p-3 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-semibold text-brown/70 mb-1">
+                      {formatDate(installment.date)}
+                    </p>
+                    <p className="text-lg font-bold text-brown mb-2">
+                      {installment.amount.toFixed(2)} {currency}
+                    </p>
+                  </div>
+                  <div
+                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(
+                      installment.status
+                    )}`}
+                  >
+                    {getStatusLabel(installment.status)}
+                  </div>
                 </div>
 
                 {installment.status === 'upcoming' && installment.daysUntilDue !== undefined && (
-                  <p className="text-xs text-brown/60 mt-2">
+                  <p className="text-xs text-brown/60 mt-1">
                     {installment.daysUntilDue === 0
                       ? 'Due today'
                       : `${installment.daysUntilDue} day${installment.daysUntilDue !== 1 ? 's' : ''} remaining`}
