@@ -386,6 +386,30 @@ impl StellarKraal {
         Ok(())
     }
 
+    // ── is_initialized ────────────────────────────────────────────────────
+    /// Returns `true` if the contract has been initialized, `false` otherwise.
+    ///
+    /// This is a read-only view function that requires no authentication.
+    /// Off-chain tools (deployment scripts, dashboards, tests) can call this
+    /// before any other function to verify the contract is ready to accept
+    /// transactions.
+    ///
+    /// # Examples
+    ///
+    /// Using `stellar-cli`:
+    /// ```bash
+    /// stellar contract invoke \
+    ///   --id $CONTRACT_ID \
+    ///   --rpc-url https://soroban-testnet.stellar.org \
+    ///   --network-passphrase "Test SDF Network ; September 2015" \
+    ///   -- is_initialized
+    /// ```
+    ///
+    /// Returns `true` (Boolean) if initialized, `false` otherwise.
+    pub fn is_initialized(env: Env) -> bool {
+        env.storage().instance().has(&ADMIN)
+    }
+
     // ── set_twap_window ───────────────────────────────────────────────────
     /// Update the TWAP window (in ledgers) used to smooth oracle prices.
     ///

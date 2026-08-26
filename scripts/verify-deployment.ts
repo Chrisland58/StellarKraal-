@@ -144,20 +144,18 @@ async function checkHealthFactor(server: SorobanRpc.Server) {
 async function checkInitializedState(server: SorobanRpc.Server) {
   console.log("\n[5] Initialized state");
   try {
-    // Calling get_collateral with id=0 — if NotInitialized we know the contract isn't set up
-    await simulateRead(server, "get_collateral", [
-      nativeToScVal(BigInt(0), { type: "u64" }),
-    ]);
-    ok("Contract is initialized (get_collateral responded)");
+    // is_initialized() is a dedicated read-only view that returns a bool.
+    // true  → contract is ready to accept transactions
+    // false → initialize() has not been called yet
+    const result = await simulateRead(server, "is_initialized", []);
+    if (result) {
+      ok("Contract is initialized (is_initialized returned true)");
+    } else {
+      fail("Contract initialized", "is_initialized returned false — run initialize() first");
+    }
   } catch (e) {
     const msg = (e as Error).message;
-    if (msg.includes("NotInitialized") || msg.includes("1")) {
-      fail("Contract initialized", "contract not yet initialized — run initialize()");
-    } else if (msg.includes("CollateralNotFound") || msg.includes("6")) {
-      ok("Contract is initialized (CollateralNotFound expected on fresh deploy)");
-    } else {
-      fail("Contract initialized check", msg);
-    }
+    fail("Contract initialized check", msg);
   }
 }
 

@@ -28,6 +28,8 @@ Step-by-step guides for borrowers using the StellarKraal protocol.
 | [Idempotency Keys](idempotency.md) | How to generate and use `Idempotency-Key` headers for safe retries on write endpoints. Includes UUID v4 examples and replay behaviour. |
 | [Monitoring and Alerting](alerting.md) | Alert rule structure, Slack/PagerDuty integration, cooldown deduplication, and step-by-step guide to adding a new alert rule. |
 | [Response Cache Middleware](response-cache.md) | Which endpoints are cached, how cache keys are built, bypassing the cache, manual invalidation, and thundering-herd considerations. |
+| [Audit Middleware](audit-middleware.md) | What the audit middleware logs (method, path, status, duration, user), how `redact` masks PII and sensitive fields, and how to add new fields to audit logs. |
+| [Event Listener Lifecycle](event-listener-lifecycle.md) | When `startEventListener` and `stopEventListener` are called, how missed events are replayed on restart, polling interval configuration, and error handling. |
 
 ---
 

@@ -216,6 +216,36 @@ fn test_initialize_valid_params_succeed() {
     client.initialize(&admin, &oracle, &token, &treasury, &6000u32, &6000u32, &1u32);
 }
 
+// ── is_initialized ────────────────────────────────────────────────────
+
+/// `is_initialized` must return `false` before the contract is initialized.
+#[test]
+fn test_is_initialized_false_before_init() {
+    let (env, cid, _admin, _oracle, _token, _treasury) = setup();
+    let client = StellarKraalClient::new(&env, &cid);
+    assert!(!client.is_initialized(), "is_initialized must be false before initialize()");
+}
+
+/// `is_initialized` must return `true` after successful initialization.
+#[test]
+fn test_is_initialized_true_after_init() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    assert!(client.is_initialized(), "is_initialized must be true after initialize()");
+}
+
+/// `is_initialized` does not require authentication and can be called by any address.
+#[test]
+fn test_is_initialized_no_auth_required() {
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    // Call without setting up any auth expectation — must still succeed.
+    let result = client.is_initialized();
+    assert!(result);
+}
+
 // ── register_livestock ────────────────────────────────────────────────
 #[test]
 fn test_register_livestock_ok() {

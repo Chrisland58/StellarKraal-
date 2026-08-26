@@ -244,4 +244,5 @@ cd backend && npm test -- --testPathPattern=contractEventListener
 - [events.md](../protocol/events.md) — full typed schemas for all contract events
 - [contractEventListener.ts](../../backend/src/contractEventListener.ts) — source code
 - [contractEventListener.test.ts](../../backend/src/contractEventListener.test.ts) — unit tests
+- [Event Listener Lifecycle](event-listener-lifecycle.md) — startup/shutdown sequence, missed-event replay, and polling interval config
 - [Backend README](../../backend/README.md)
