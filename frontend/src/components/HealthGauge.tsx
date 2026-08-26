@@ -298,6 +298,22 @@ export default function HealthGauge({ value, history, loading }: Props) {
   const color = healthColor(value);
   const label = value >= 15_000 ? 'Safe' : value >= 10_000 ? 'Warning' : 'Danger';
 
+  const prevValueRef = useRef<number>(value);
+  const [flash, setFlash] = useState(false);
+  const [direction, setDirection] = useState<'up' | 'down' | 'none'>('none');
+
+  useEffect(() => {
+    const prev = prevValueRef.current;
+    if (prev !== value) {
+      setDirection(value > prev ? 'up' : 'down');
+      setFlash(true);
+      const timer = setTimeout(() => setFlash(false), 1000);
+      prevValueRef.current = value;
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [value]);
+
   // Animate needle via ref to avoid re-renders
   const needleRef = useRef<SVGLineElement>(null);
   const progressRef = useRef<SVGPathElement>(null);
@@ -329,10 +345,10 @@ export default function HealthGauge({ value, history, loading }: Props) {
 
   return (
     <div
-      className="flex flex-col items-center w-full"
+      className={`flex flex-col items-center w-full ${flash ? 'motion-safe:animate-[flashHighlight_1s_ease-out]' : ''}`}
       role="status"
       aria-live="polite"
-      aria-label={`Health factor: ${displayValue}x, ${label}`}
+      aria-label={`Health factor: ${displayValue}x, ${label}${direction !== 'none' ? `, changed ${direction}` : ''}`}
     >
       <svg viewBox="20 20 160 90" className="w-full max-w-xs" aria-hidden="true">
         {/* Background track */}
@@ -390,12 +406,35 @@ export default function HealthGauge({ value, history, loading }: Props) {
         <text x={CX} y={CY + 18} textAnchor="middle" fontSize="13" fontWeight="700" fill={color}>
           {displayValue}x
         </text>
+
+        {/* Direction indicator */}
+        {direction !== 'none' && (
+          <text
+            x={CX + 28}
+            y={CY + 10}
+            textAnchor="middle"
+            fontSize="12"
+            fontWeight="700"
+            fill={flash ? '#D97706' : color}
+            className={flash ? 'motion-safe:animate-[fadeOut_1s_ease-out]' : ''}
+            aria-hidden="true"
+          >
+            {direction === 'up' ? '▲' : '▼'}
+          </text>
+        )}
       </svg>
 
       {/* Label below */}
       <span className="text-sm font-semibold mt-1" style={{ color }}>
         {label}
       </span>
+
+      {/* Flash overlay for accessibility */}
+      {flash && (
+        <span className="sr-only" aria-live="polite">
+          Health factor {direction === 'up' ? 'increased' : 'decreased'} to {displayValue}x
+        </span>
+      )}
 
       {/* Optional history chart */}
       {history && history.length > 0 && <HistoryChart history={history} />}

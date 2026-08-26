@@ -56,15 +56,24 @@ describe('GlobalError', () => {
     });
   });
 
-  it('reloads the page from the reload button', async () => {
+  it('reloads the page from the Try Again button', async () => {
     setNodeEnv('production');
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const reloadSpy = jest.spyOn(globalErrorActions, 'reloadPage').mockImplementation(() => {});
 
     render(<GlobalError error={createError()} reset={jest.fn()} />);
-    await userEvent.click(screen.getByRole('button', { name: /reload page/i }));
+    await userEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(reloadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('navigates home from the Go Home button', async () => {
+    setNodeEnv('production');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<GlobalError error={createError()} reset={jest.fn()} />);
+    const homeLink = screen.getByRole('link', { name: /go home/i });
+    expect(homeLink).toHaveAttribute('href', '/');
   });
 
   it('uses window.location.reload for reloads', () => {

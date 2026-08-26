@@ -168,6 +168,17 @@ body {
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
+/* ── Health factor flash animation (#868) ───────────────────────────────────── */
+@keyframes flashHighlight {
+  0% { background-color: rgba(217, 119, 6, 0.25); }
+  100% { background-color: transparent; }
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* ── Typography component classes (#298, #788 responsive) ── */
 @layer components {
   /* h1 — fluid: 1.75rem (mobile) → 2.75rem (desktop) */

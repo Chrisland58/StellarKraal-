@@ -237,6 +237,33 @@ describe('HealthGauge', () => {
     });
     expect(screen.queryByText('Health:')).toBeNull();
   });
+
+  it('flashes yellow when value changes', () => {
+    const { container, rerender } = render(<HealthGauge value={10_000} />);
+    expect(container.querySelector('[aria-live="polite"]')).toBeTruthy();
+
+    rerender(<HealthGauge value={12_000} />);
+    const status = container.querySelector('[aria-live="polite"]');
+    expect(status).toBeTruthy();
+    expect(status?.className).toMatch(/flashHighlight/);
+  });
+
+  it('shows direction indicator when value changes', () => {
+    const { container, rerender } = render(<HealthGauge value={10_000} />);
+
+    rerender(<HealthGauge value={12_000} />);
+    expect(screen.getByText('▲')).toBeTruthy();
+
+    rerender(<HealthGauge value={8_000} />);
+    expect(screen.getByText('▼')).toBeTruthy();
+  });
+
+  it('announces health factor change for screen readers', () => {
+    const { container, rerender } = render(<HealthGauge value={10_000} />);
+
+    rerender(<HealthGauge value={12_000} />);
+    expect(screen.getByText('Health factor increased to 1.20x')).toBeTruthy();
+  });
 });
 
 describe('HealthGauge skeleton', () => {
