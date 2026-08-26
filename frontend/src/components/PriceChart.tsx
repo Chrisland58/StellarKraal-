@@ -71,7 +71,7 @@ export function PriceChart({ url, label = 'Price History' }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-6 shadow" aria-label="Loading price chart">
+      <div className="bg-[color:var(--token-surface-raised)] rounded-2xl p-6 shadow" aria-label="Loading price chart">
         <div className="h-32 flex items-center justify-center">
           <span className="text-brown/50 text-sm">Loading chart…</span>
         </div>
@@ -81,7 +81,7 @@ export function PriceChart({ url, label = 'Price History' }: Props) {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl p-6 shadow" role="alert">
+      <div className="bg-[color:var(--token-surface-raised)] rounded-2xl p-6 shadow" role="alert">
         <p className="text-sm text-red-500">{error}</p>
       </div>
     );
@@ -89,7 +89,7 @@ export function PriceChart({ url, label = 'Price History' }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-6 shadow">
+      <div className="bg-[color:var(--token-surface-raised)] rounded-2xl p-6 shadow">
         <p className="text-sm text-brown/50">No price history available.</p>
       </div>
     );
@@ -134,7 +134,7 @@ export function PriceChart({ url, label = 'Price History' }: Props) {
           y1={PAD.top}
           x2={SVG_W - PAD.right}
           y2={PAD.top}
-          stroke="#e5e0d8"
+          style={{ stroke: 'var(--token-border)' }}
           strokeWidth={0.5}
         />
         <line
@@ -142,7 +142,7 @@ export function PriceChart({ url, label = 'Price History' }: Props) {
           y1={SVG_H - PAD.bottom}
           x2={SVG_W - PAD.right}
           y2={SVG_H - PAD.bottom}
-          stroke="#e5e0d8"
+          style={{ stroke: 'var(--token-border)' }}
           strokeWidth={0.5}
         />
 
@@ -151,7 +151,7 @@ export function PriceChart({ url, label = 'Price History' }: Props) {
           <path
             d={path}
             fill="none"
-            stroke="#b5860a"
+            style={{ stroke: 'var(--token-accent)' }}
             strokeWidth={2}
             strokeLinejoin="round"
             strokeLinecap="round"

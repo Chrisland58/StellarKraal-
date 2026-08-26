@@ -77,4 +77,92 @@ describe("PriceChart", () => {
       expect(screen.getByText("No price history available.")).toBeInTheDocument();
     });
   });
+
+  // ── Design-token tests (issue #818) ──────────────────────────────────────
+
+  it("chart line uses --token-accent CSS var instead of hardcoded hex", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: MOCK_DATA }),
+    });
+
+    const { container } = render(<PriceChart url="/api/v1/collateral/1/appraisals" />);
+    await waitFor(() => screen.getByLabelText("Price History"));
+
+    const path = container.querySelector("path");
+    expect(path).toBeTruthy();
+    expect(path!.style.stroke).toBe("var(--token-accent)");
+  });
+
+  it("last-point dot uses --token-accent fill", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: MOCK_DATA }),
+    });
+
+    const { container } = render(<PriceChart url="/api/v1/collateral/1/appraisals" />);
+    await waitFor(() => screen.getByLabelText("Price History"));
+
+    const dot = container.querySelector("circle");
+    expect(dot).toBeTruthy();
+    expect(dot!.style.fill).toBe("var(--token-accent)");
+  });
+
+  it("grid lines use --token-border CSS var instead of hardcoded hex", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: MOCK_DATA }),
+    });
+
+    const { container } = render(<PriceChart url="/api/v1/collateral/1/appraisals" />);
+    await waitFor(() => screen.getByLabelText("Price History"));
+
+    const svgLines = container.querySelectorAll("line");
+    svgLines.forEach((line) => {
+      expect(line.style.stroke).toBe("var(--token-border)");
+    });
+  });
+
+  it("axis labels use --token-text-muted fill instead of hardcoded hex", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: MOCK_DATA }),
+    });
+
+    const { container } = render(<PriceChart url="/api/v1/collateral/1/appraisals" />);
+    await waitFor(() => screen.getByLabelText("Price History"));
+
+    const texts = container.querySelectorAll("text");
+    expect(texts.length).toBeGreaterThan(0);
+    texts.forEach((text) => {
+      expect(text.style.fill).toBe("var(--token-text-muted)");
+    });
+  });
+
+  it("container does NOT use bg-white class", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: MOCK_DATA }),
+    });
+
+    const { container } = render(<PriceChart url="/api/v1/collateral/1/appraisals" />);
+    await waitFor(() => screen.getByLabelText("Price History"));
+
+    // The section/container must not have bg-white
+    const section = container.querySelector("section");
+    expect(section).toBeTruthy();
+    expect(section!.className).not.toContain("bg-white");
+    expect(section!.className).toMatch(/token-surface-raised/);
+  });
+
+  it("loading state uses design token bg class instead of bg-white", () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(new Promise(() => {})); // never resolves
+
+    const { container } = render(<PriceChart url="/api/v1/collateral/1/appraisals" />);
+
+    const loadingDiv = container.querySelector('[aria-label="Loading price chart"]');
+    expect(loadingDiv).toBeTruthy();
+    expect(loadingDiv!.className).not.toContain("bg-white");
+    expect(loadingDiv!.className).toMatch(/token-surface-raised/);
+  });
 });
