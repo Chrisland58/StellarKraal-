@@ -1,24 +1,22 @@
-"use client";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useWallet } from "@/hooks/useWallet";
+'use client';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useWallet } from '@/hooks/useWallet';
+import { formatXlm } from '@/lib/formatMoney';
 
-const NETWORK = (process.env.NEXT_PUBLIC_NETWORK ?? "TESTNET").toUpperCase();
+const NETWORK = (process.env.NEXT_PUBLIC_NETWORK ?? 'TESTNET').toUpperCase();
 const HORIZON_URL =
-  NETWORK === "MAINNET"
-    ? "https://horizon.stellar.org"
-    : "https://horizon-testnet.stellar.org";
+  NETWORK === 'MAINNET' ? 'https://horizon.stellar.org' : 'https://horizon-testnet.stellar.org';
 const STELLAR_EXPERT_BASE =
-  NETWORK === "MAINNET"
-    ? "https://stellar.expert/explorer/mainnet/account"
-    : "https://stellar.expert/explorer/testnet/account";
+  NETWORK === 'MAINNET'
+    ? 'https://stellar.expert/explorer/mainnet/account'
+    : 'https://stellar.expert/explorer/testnet/account';
 
 function truncateAddress(address: string): string {
   return `${address.slice(0, 8)}…${address.slice(-6)}`;
 }
 
 export default function WalletHeader() {
-  const { address, freighterInstalled, connecting, connect, disconnect } =
-    useWallet();
+  const { address, freighterInstalled, connecting, connect, disconnect } = useWallet();
 
   const [open, setOpen] = useState(false);
   const [xlmBalance, setXlmBalance] = useState<string | null>(null);
@@ -38,15 +36,15 @@ export default function WalletHeader() {
     setBalanceLoading(true);
     fetch(`${HORIZON_URL}/accounts/${address}`)
       .then((res) => {
-        if (!res.ok) throw new Error("account not found");
+        if (!res.ok) throw new Error('account not found');
         return res.json();
       })
       .then((data) => {
         if (cancelled) return;
         const native = (data.balances as Array<{ asset_type: string; balance: string }>).find(
-          (b) => b.asset_type === "native"
+          (b) => b.asset_type === 'native'
         );
-        setXlmBalance(native ? native.balance : "0");
+        setXlmBalance(native ? native.balance : '0');
       })
       .catch(() => {
         if (!cancelled) setXlmBalance(null);
@@ -62,7 +60,7 @@ export default function WalletHeader() {
   // Close popover on Escape key
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) {
+      if (e.key === 'Escape' && open) {
         setOpen(false);
         triggerRef.current?.focus();
       }
@@ -87,11 +85,11 @@ export default function WalletHeader() {
   );
 
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [handleKeyDown, handleClickOutside]);
 
@@ -165,8 +163,8 @@ export default function WalletHeader() {
                       </span>
                       <button
                         onClick={copyAddress}
-                        aria-label={copied ? "Address copied" : "Copy address"}
-                        title={copied ? "Copied!" : "Copy address"}
+                        aria-label={copied ? 'Address copied' : 'Copy address'}
+                        title={copied ? 'Copied!' : 'Copy address'}
                         className="shrink-0 text-color-text-subtle hover:text-color-text transition focus:outline-none focus-visible:ring-2 focus-visible:ring-color-primary rounded"
                       >
                         {copied ? (
@@ -180,11 +178,7 @@ export default function WalletHeader() {
                             strokeWidth={2}
                             aria-hidden="true"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M5 13l4 4L19 7"
-                            />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
                           /* clipboard icon */
@@ -211,19 +205,13 @@ export default function WalletHeader() {
                   {/* XLM balance */}
                   <div>
                     <p className="text-xs text-color-text-subtle mb-1">XLM Balance</p>
-                    <p
-                      className="font-semibold text-color-text"
-                      data-testid="wallet-xlm-balance"
-                    >
+                    <p className="font-semibold text-color-text" data-testid="wallet-xlm-balance">
                       {balanceLoading ? (
                         <span className="inline-block h-4 w-16 animate-pulse rounded bg-color-border" />
                       ) : xlmBalance !== null ? (
-                        `${Number(xlmBalance).toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 7,
-                        })} XLM`
+                        `${formatXlm(Number(xlmBalance))}`
                       ) : (
-                        "—"
+                        '—'
                       )}
                     </p>
                   </div>
@@ -297,7 +285,7 @@ export default function WalletHeader() {
             disabled={connecting || freighterInstalled === null}
             className="bg-gold text-brown font-semibold px-4 py-1.5 rounded-lg hover:bg-gold/80 transition disabled:opacity-50"
           >
-            {connecting ? "Connecting…" : "Connect Wallet"}
+            {connecting ? 'Connecting…' : 'Connect Wallet'}
           </button>
         )}
       </div>

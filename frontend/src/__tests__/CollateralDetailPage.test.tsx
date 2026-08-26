@@ -2,44 +2,40 @@
  * Tests for the collateral detail page (/collateral/[id]).
  * Uses fetch mocking to simulate API responses.
  */
-import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import CollateralDetailPage from "@/app/collateral/[id]/page";
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import CollateralDetailPage from '@/app/collateral/[id]/page';
 
 // Mock next/navigation
-jest.mock("next/navigation", () => ({
-  useParams: () => ({ id: "col-1" }),
+jest.mock('next/navigation', () => ({
+  useParams: () => ({ id: 'col-1' }),
 }));
 
 // Mock next/link
-jest.mock("next/link", () => {
+jest.mock('next/link', () => {
   const Link = ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
   );
-  Link.displayName = "Link";
+  Link.displayName = 'Link';
   return Link;
 });
 
 // Mock next/image — renders a plain <img> so tests can assert on src/alt
-jest.mock("next/image", () => {
+jest.mock('next/image', () => {
   const MockImage = ({
     src,
     alt,
     loading,
-    placeholder,
-    blurDataURL,
-    fill,
     sizes,
     className,
-    ...rest
+    placeholder,
   }: React.ImgHTMLAttributes<HTMLImageElement> & {
     fill?: boolean;
     sizes?: string;
     placeholder?: string;
     blurDataURL?: string;
   }) => (
-    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src as string}
       alt={alt}
@@ -47,15 +43,14 @@ jest.mock("next/image", () => {
       data-sizes={sizes}
       data-placeholder={placeholder}
       className={className}
-      {...rest}
     />
   );
-  MockImage.displayName = "Image";
+  MockImage.displayName = 'Image';
   return MockImage;
 });
 
 // Mock PriceChart to prevent fetch conflicts in tests
-jest.mock("@/components/PriceChart", () => ({
+jest.mock('@/components/PriceChart', () => ({
   PriceChart: () => <div data-testid="price-chart-mock" />,
 }));
 
@@ -65,27 +60,27 @@ jest.mock("@/components/Sparkline", () => ({
 }));
 
 const mockRecord = {
-  id: "col-1",
-  owner: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
-  animal_type: "cattle",
-  breed: "Nguni",
+  id: 'col-1',
+  owner: 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN',
+  animal_type: 'cattle',
+  breed: 'Nguni',
   age_years: 3,
   weight_kg: 450,
   count: 2,
   appraised_value: 50_000_000,
   appraisal_history: [
-    { date: "2026-01-01T00:00:00.000Z", value: 45_000_000 },
-    { date: "2026-06-01T00:00:00.000Z", value: 50_000_000 },
+    { date: '2026-01-01T00:00:00.000Z', value: 45_000_000 },
+    { date: '2026-06-01T00:00:00.000Z', value: 50_000_000 },
   ],
-  createdAt: "2026-01-01T00:00:00.000Z",
+  createdAt: '2026-01-01T00:00:00.000Z',
 };
 
 beforeEach(() => {
   jest.resetAllMocks();
 });
 
-describe("CollateralDetailPage", () => {
-  it("renders animal profile and current appraised value", async () => {
+describe('CollateralDetailPage', () => {
+  it('renders animal profile and current appraised value', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       ok: true,
@@ -101,12 +96,12 @@ describe("CollateralDetailPage", () => {
     expect(screen.getByText(/Nguni/i)).toBeInTheDocument();
     expect(screen.getByText(/3 yr/i)).toBeInTheDocument();
     expect(screen.getByText(/450 kg/i)).toBeInTheDocument();
-    // Current appraised value: 50_000_000 stroops = 5.00 XLM — may appear multiple times
-    const valueMatches = screen.getAllByText(/5\.00/);
+    // Current appraised value: 50_000_000 stroops = 5 XLM — may appear multiple times
+    const valueMatches = screen.getAllByText(/5(\.00)? XLM|5 XLM/);
     expect(valueMatches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders appraisal history table with newest entry first", async () => {
+  it('renders appraisal history table with newest entry first', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       ok: true,
@@ -119,16 +114,16 @@ describe("CollateralDetailPage", () => {
       expect(screen.getByText(/Appraisal History/i)).toBeInTheDocument();
     });
 
-    const rows = screen.getAllByRole("row");
+    const rows = screen.getAllByRole('row');
     // rows[0] = header, rows[1] = newest (Jun 2026), rows[2] = oldest (Jan 2026)
     expect(rows.length).toBe(3); // header + 2 data rows
-    // Newest first: 50_000_000 stroops = 5.00 XLM
-    expect(rows[1].textContent).toContain("5.00");
-    // Oldest: 45_000_000 stroops = 4.50 XLM
-    expect(rows[2].textContent).toContain("4.50");
+    // Newest first: 50_000_000 stroops = 5 XLM
+    expect(rows[1].textContent).toMatch(/5(\.00)?/);
+    // Oldest: 45_000_000 stroops = 4.5 XLM
+    expect(rows[2].textContent).toMatch(/4\.5/);
   });
 
-  it("renders back link to dashboard", async () => {
+  it('renders back link to dashboard', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       ok: true,
@@ -141,11 +136,11 @@ describe("CollateralDetailPage", () => {
       expect(screen.getByText(/cattle/i)).toBeInTheDocument();
     });
 
-    const link = screen.getByText(/Back to Dashboard/i).closest("a");
-    expect(link).toHaveAttribute("href", "/dashboard");
+    const link = screen.getByText(/Back to Dashboard/i).closest('a');
+    expect(link).toHaveAttribute('href', '/dashboard');
   });
 
-  it("shows 404 error state when collateral is not found", async () => {
+  it('shows 404 error state when collateral is not found', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 404,
       ok: false,
@@ -161,26 +156,28 @@ describe("CollateralDetailPage", () => {
     // Page has two "Back to Collateral List" links — use getAllByText
     const backLinks = screen.getAllByText(/Back to Collateral List/i);
     expect(backLinks.length).toBeGreaterThanOrEqual(1);
-    expect(backLinks[0].closest("a")).toHaveAttribute("href", "/collateral");
+    expect(backLinks[0].closest('a')).toHaveAttribute('href', '/collateral');
   });
 
-  it("shows network error state with retry button when fetch fails", async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error("Network error"));
+  it('shows network error state with retry button when fetch fails', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
     render(<CollateralDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Could not load collateral – check your connection/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Could not load collateral – check your connection/i)
+      ).toBeInTheDocument();
     });
 
-    const retryButton = screen.getByRole("button", { name: /retry/i });
+    const retryButton = screen.getByRole('button', { name: /retry/i });
     expect(retryButton).toBeInTheDocument();
   });
 
-  it("retries fetch when retry button is clicked", async () => {
+  it('retries fetch when retry button is clicked', async () => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock
-      .mockRejectedValueOnce(new Error("Network error"))
+      .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
@@ -190,10 +187,12 @@ describe("CollateralDetailPage", () => {
     render(<CollateralDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Could not load collateral – check your connection/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Could not load collateral – check your connection/i)
+      ).toBeInTheDocument();
     });
 
-    const retryButton = screen.getByRole("button", { name: /retry/i });
+    const retryButton = screen.getByRole('button', { name: /retry/i });
     await userEvent.click(retryButton);
 
     await waitFor(() => {
@@ -203,30 +202,32 @@ describe("CollateralDetailPage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("shows error state when response status is not ok and not 404", async () => {
+  it('shows error state when response status is not ok and not 404', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 500,
       ok: false,
-      json: async () => ({ error: "Server error" }),
+      json: async () => ({ error: 'Server error' }),
     } as Response);
 
     render(<CollateralDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Could not load collateral – check your connection/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Could not load collateral – check your connection/i)
+      ).toBeInTheDocument();
     });
 
-    const retryButton = screen.getByRole("button", { name: /retry/i });
+    const retryButton = screen.getByRole('button', { name: /retry/i });
     expect(retryButton).toBeInTheDocument();
   });
 
-  describe("responsive collateral image (#815)", () => {
+  describe('responsive collateral image (#815)', () => {
     const recordWithPhoto = {
       ...mockRecord,
-      photo_url: "https://example.com/cattle-photo.jpg",
+      photo_url: 'https://example.com/cattle-photo.jpg',
     };
 
-    it("renders Next.js Image component when photo_url is present", async () => {
+    it('renders Next.js Image component when photo_url is present', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         status: 200,
         ok: true,
@@ -236,11 +237,11 @@ describe("CollateralDetailPage", () => {
       render(<CollateralDetailPage />);
 
       await waitFor(() => {
-        expect(screen.getByRole("img", { name: /cattle collateral photo/i })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: /cattle collateral photo/i })).toBeInTheDocument();
       });
     });
 
-    it("image has descriptive alt text from collateral metadata", async () => {
+    it('image has descriptive alt text from collateral metadata', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         status: 200,
         ok: true,
@@ -250,12 +251,12 @@ describe("CollateralDetailPage", () => {
       render(<CollateralDetailPage />);
 
       await waitFor(() => {
-        const img = screen.getByRole("img", { name: /cattle collateral photo/i });
-        expect(img).toHaveAttribute("alt", "cattle collateral photo");
+        const img = screen.getByRole('img', { name: /cattle collateral photo/i });
+        expect(img).toHaveAttribute('alt', 'cattle collateral photo');
       });
     });
 
-    it("image uses lazy loading", async () => {
+    it('image uses lazy loading', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         status: 200,
         ok: true,
@@ -265,12 +266,12 @@ describe("CollateralDetailPage", () => {
       render(<CollateralDetailPage />);
 
       await waitFor(() => {
-        const img = screen.getByRole("img", { name: /cattle collateral photo/i });
-        expect(img).toHaveAttribute("loading", "lazy");
+        const img = screen.getByRole('img', { name: /cattle collateral photo/i });
+        expect(img).toHaveAttribute('loading', 'lazy');
       });
     });
 
-    it("image has sizes attribute for responsive srcset", async () => {
+    it('image has sizes attribute for responsive srcset', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         status: 200,
         ok: true,
@@ -280,12 +281,12 @@ describe("CollateralDetailPage", () => {
       render(<CollateralDetailPage />);
 
       await waitFor(() => {
-        const img = screen.getByRole("img", { name: /cattle collateral photo/i });
-        expect(img).toHaveAttribute("data-sizes");
+        const img = screen.getByRole('img', { name: /cattle collateral photo/i });
+        expect(img).toHaveAttribute('data-sizes');
       });
     });
 
-    it("image has blur placeholder for smooth loading", async () => {
+    it('image has blur placeholder for smooth loading', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         status: 200,
         ok: true,
@@ -295,12 +296,12 @@ describe("CollateralDetailPage", () => {
       render(<CollateralDetailPage />);
 
       await waitFor(() => {
-        const img = screen.getByRole("img", { name: /cattle collateral photo/i });
-        expect(img).toHaveAttribute("data-placeholder", "blur");
+        const img = screen.getByRole('img', { name: /cattle collateral photo/i });
+        expect(img).toHaveAttribute('data-placeholder', 'blur');
       });
     });
 
-    it("renders emoji fallback when photo_url is absent", async () => {
+    it('renders emoji fallback when photo_url is absent', async () => {
       const recordWithoutPhoto = { ...mockRecord, photo_url: undefined };
       global.fetch = jest.fn().mockResolvedValue({
         status: 200,
@@ -311,10 +312,10 @@ describe("CollateralDetailPage", () => {
       render(<CollateralDetailPage />);
 
       await waitFor(() => {
-        expect(screen.getByText("🐄")).toBeInTheDocument();
+        expect(screen.getByText('🐄')).toBeInTheDocument();
       });
       // No collateral photo img element should be rendered
-      expect(screen.queryByRole("img", { name: /collateral photo/i })).toBeNull();
+      expect(screen.queryByRole('img', { name: /collateral photo/i })).toBeNull();
     });
   });
 

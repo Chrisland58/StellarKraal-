@@ -134,9 +134,13 @@ export default function StepReview() {
       <div>
         <h2 className="text-2xl font-bold text-brown">Review Loan Terms</h2>
         <div className="flex items-center gap-3 mt-2 text-sm text-brown/70 bg-brown/5 inline-flex px-3 py-1.5 rounded-full border border-brown/10">
-          <span className="flex items-center gap-1">⏱ {isDetailedView ? 'About 2 minute read' : 'About 1 minute read'}</span>
+          <span className="flex items-center gap-1">
+            ⏱ {isDetailedView ? 'About 2 minute read' : 'About 1 minute read'}
+          </span>
           <span className="w-1 h-1 rounded-full bg-brown/30" />
-          <span className="flex items-center gap-1">📊 {isDetailedView ? 'High complexity' : 'Low complexity'}</span>
+          <span className="flex items-center gap-1">
+            📊 {isDetailedView ? 'High complexity' : 'Low complexity'}
+          </span>
         </div>
       </div>
 

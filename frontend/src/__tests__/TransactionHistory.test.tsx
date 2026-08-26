@@ -2,7 +2,10 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import TransactionHistory from '../components/TransactionHistory';
 
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => '/transactions',
+}));
 
 jest.mock('@/hooks/usePagination', () => ({
   usePagination: () => ({

@@ -8,6 +8,7 @@ import Card from '@/components/Card';
 import Pagination from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { formatXlmFromStroops } from '@/lib/formatMoney';
 
 interface Transaction {
   id: number;
@@ -25,7 +26,9 @@ function TransactionRow({ tx }: { tx: Transaction }) {
   return (
     <tr className="border-b border-brown-100 last:border-0">
       <td className="py-2 pr-4 text-sm text-brown-600">{tx.type ?? 'Repayment'}</td>
-      <td className="py-2 pr-4 text-sm text-brown-600 font-mono">{tx.amount.toLocaleString()} stroops</td>
+      <td className="py-2 pr-4 text-sm text-brown-600 font-mono">
+        {formatXlmFromStroops(tx.amount)}
+      </td>
       <td className="py-2 pr-4 text-sm text-brown-600">
         {new Date(tx.created_at).toLocaleDateString()}
       </td>
@@ -42,25 +45,33 @@ function TransactionCard({ tx }: { tx: Transaction }) {
     <li className="rounded-xl border border-brown-100 bg-cream-100 p-4 shadow-sm dark:bg-brown-800 dark:border-brown-700">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
         <div>
-          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Type</dt>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">
+            Type
+          </dt>
           <dd className="mt-0.5 text-sm font-semibold text-brown-700 dark:text-cream-200">
             {tx.type ?? 'Repayment'}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Amount</dt>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">
+            Amount
+          </dt>
           <dd className="mt-0.5 text-sm font-mono text-brown-700 dark:text-cream-200">
-            {tx.amount.toLocaleString()} stroops
+            {formatXlmFromStroops(tx.amount)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Date</dt>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">
+            Date
+          </dt>
           <dd className="mt-0.5 text-sm text-brown-700 dark:text-cream-200">
             {new Date(tx.created_at).toLocaleDateString()}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">Status</dt>
+          <dt className="text-xs font-medium text-brown-500 dark:text-brown-300 uppercase tracking-wide">
+            Status
+          </dt>
           <dd className="mt-0.5">
             <StatusBadge status={tx.status} />
           </dd>
@@ -74,8 +85,8 @@ function StatusBadge({ status }: { status?: string }) {
   const s = status ?? 'completed';
   const styles: Record<string, string> = {
     completed: 'bg-success-light text-success-dark',
-    pending:   'bg-warning-light text-warning-dark',
-    failed:    'bg-error-light text-error-dark',
+    pending: 'bg-warning-light text-warning-dark',
+    failed: 'bg-error-light text-error-dark',
   };
   const cls = styles[s.toLowerCase()] ?? styles.completed;
   return (
@@ -171,8 +182,10 @@ export default function TransactionHistory({ walletAddress }: { walletAddress: s
              * don't bleed through. We match the Card background for both
              * light (white / cream-50) and dark (stone-800) modes.
              */}
-            <tr className="border-b border-brown-200 dark:border-stone-600 text-left
-                           bg-white dark:bg-stone-800">
+            <tr
+              className="border-b border-brown-200 dark:border-stone-600 text-left
+                           bg-white dark:bg-stone-800"
+            >
               <th
                 scope="col"
                 className="w-1/4 py-3 pr-4 text-xs font-semibold uppercase tracking-wide

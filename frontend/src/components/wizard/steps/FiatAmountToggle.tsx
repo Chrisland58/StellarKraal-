@@ -1,5 +1,6 @@
-"use client";
-import { useState } from "react";
+'use client';
+import { useState } from 'react';
+import { formatFiat } from '@/lib/formatMoney';
 
 interface Props {
   xlmAmount: string;
@@ -16,10 +17,10 @@ export default function FiatAmountToggle({
   xlmAmount,
   onFiatChange,
   xlmToFiatRate = 0.11,
-  fiatSymbol = "USD",
+  fiatSymbol = 'USD',
 }: Props) {
-  const [mode, setMode] = useState<"XLM" | "FIAT">("XLM");
-  const [fiatValue, setFiatValue] = useState("");
+  const [mode, setMode] = useState<'XLM' | 'FIAT'>('XLM');
+  const [fiatValue, setFiatValue] = useState('');
 
   function handleFiatInput(value: string) {
     setFiatValue(value);
@@ -31,8 +32,8 @@ export default function FiatAmountToggle({
 
   const estimatedFiat =
     xlmAmount && !isNaN(parseFloat(xlmAmount))
-      ? (parseFloat(xlmAmount) * xlmToFiatRate).toFixed(2)
-      : "0.00";
+      ? formatFiat(parseFloat(xlmAmount) * xlmToFiatRate, fiatSymbol)
+      : formatFiat(0, fiatSymbol);
 
   return (
     <div className="mt-2 flex items-center gap-3 text-sm">
@@ -43,31 +44,31 @@ export default function FiatAmountToggle({
       >
         <button
           type="button"
-          onClick={() => setMode("XLM")}
-          aria-pressed={mode === "XLM"}
+          onClick={() => setMode('XLM')}
+          aria-pressed={mode === 'XLM'}
           className={`px-3 py-1.5 font-medium ${
-            mode === "XLM"
-              ? "bg-gold text-brown"
-              : "bg-white dark:bg-[#2A1A08] text-brown/60 dark:text-cream/60"
+            mode === 'XLM'
+              ? 'bg-gold text-brown'
+              : 'bg-white dark:bg-[#2A1A08] text-brown/60 dark:text-cream/60'
           }`}
         >
           XLM
         </button>
         <button
           type="button"
-          onClick={() => setMode("FIAT")}
-          aria-pressed={mode === "FIAT"}
+          onClick={() => setMode('FIAT')}
+          aria-pressed={mode === 'FIAT'}
           className={`px-3 py-1.5 font-medium ${
-            mode === "FIAT"
-              ? "bg-gold text-brown"
-              : "bg-white dark:bg-[#2A1A08] text-brown/60 dark:text-cream/60"
+            mode === 'FIAT'
+              ? 'bg-gold text-brown'
+              : 'bg-white dark:bg-[#2A1A08] text-brown/60 dark:text-cream/60'
           }`}
         >
           {fiatSymbol}
         </button>
       </div>
 
-      {mode === "FIAT" ? (
+      {mode === 'FIAT' ? (
         <input
           type="number"
           min="0"
@@ -77,9 +78,7 @@ export default function FiatAmountToggle({
           className="flex-1 border border-brown/30 dark:border-gold/40 rounded-lg px-3 py-1.5 bg-white dark:bg-[#2A1A08] text-brown dark:text-cream placeholder:text-brown/40 dark:placeholder:text-cream/40 focus:outline-none focus:ring-2 focus:ring-gold"
         />
       ) : (
-        <span className="text-brown/50 dark:text-cream/50">
-          ≈ {estimatedFiat} {fiatSymbol}
-        </span>
+        <span className="text-brown/50 dark:text-cream/50">≈ {estimatedFiat}</span>
       )}
     </div>
   );

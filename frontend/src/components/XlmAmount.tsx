@@ -1,6 +1,8 @@
-"use client";
-import { useCurrencyConversion, Currency } from "@/hooks/useCurrencyConversion";
-import { useCurrencySettings } from "@/hooks/useCurrencySettings";
+'use client';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
+import { useCurrencySettings } from '@/hooks/useCurrencySettings';
+import { formatFiat, formatXlm, getBrowserLocale } from '@/lib/formatMoney';
+import { useEffect, useState } from 'react';
 
 interface Props {
   /** Amount in XLM (not stroops) */
@@ -8,30 +10,27 @@ interface Props {
   className?: string;
 }
 
-const SYMBOLS: Record<Currency, string> = {
-  KES: "KSh",
-  NGN: "₦",
-  GHS: "GH₵",
-  USD: "$",
-};
-
-export default function XlmAmount({ xlm, className = "" }: Props) {
+export default function XlmAmount({ xlm, className = '' }: Props) {
   const { currency, enabled } = useCurrencySettings();
   const { convert, isStale, loading } = useCurrencyConversion();
+  const [locale, setLocale] = useState('en-US');
+
+  useEffect(() => {
+    setLocale(getBrowserLocale());
+  }, []);
 
   const local = enabled ? convert(xlm, currency) : null;
 
   return (
     <span className={className}>
-      {xlm.toLocaleString(undefined, { maximumFractionDigits: 7 })} XLM
+      {formatXlm(xlm, locale)}
       {enabled && (
-        <span className="text-brown/60 text-sm ml-1">
+        <span className="text-brown/60 dark:text-cream/60 text-sm ml-1">
           {loading && !local ? (
-            "…"
+            '…'
           ) : local !== null ? (
             <>
-              ({SYMBOLS[currency]}
-              {local.toLocaleString(undefined, { maximumFractionDigits: 2 })})
+              ({formatFiat(local, currency, locale)})
               {isStale && (
                 <span
                   title="Rate may be outdated (>10 min)"

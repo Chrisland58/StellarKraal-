@@ -5,6 +5,7 @@ import PageTransition from '@/components/PageTransition';
 import Card from '@/components/Card';
 import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
+import MoneyAmount from '@/components/MoneyAmount';
 import { useWallet } from '@/hooks/useWallet';
 
 interface CollateralRecord {
@@ -73,7 +74,13 @@ export default function ProfilePage() {
             icon="👛"
             heading="Wallet Not Connected"
             message="Connect your Freighter wallet to view your borrower profile."
-            ctaLabel={freighterInstalled === false ? undefined : connecting ? 'Connecting…' : 'Connect Wallet'}
+            ctaLabel={
+              freighterInstalled === false
+                ? undefined
+                : connecting
+                  ? 'Connecting…'
+                  : 'Connect Wallet'
+            }
             onCta={freighterInstalled === false ? undefined : connect}
           />
           {freighterInstalled === false && (
@@ -132,7 +139,9 @@ export default function ProfilePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...Array(2)].map((_, i) => <SkeletonRow key={i} />)}
+                  {[...Array(2)].map((_, i) => (
+                    <SkeletonRow key={i} />
+                  ))}
                 </tbody>
               </table>
             </Card>
@@ -163,8 +172,12 @@ export default function ProfilePage() {
                           {col.animal_type}
                         </td>
                         <td className="px-4 py-3 text-brown-600">{col.count}</td>
-                        <td className="px-4 py-3 text-brown-600">
-                          {col.appraised_value.toLocaleString()}
+                        <td className="px-4 py-3 text-brown-600 dark:text-cream-50">
+                          <MoneyAmount
+                            value={col.appraised_value}
+                            fromStroops
+                            interactive={false}
+                          />
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={col.status} />
@@ -195,7 +208,9 @@ export default function ProfilePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...Array(2)].map((_, i) => <SkeletonRow key={i} />)}
+                  {[...Array(2)].map((_, i) => (
+                    <SkeletonRow key={i} />
+                  ))}
                 </tbody>
               </table>
             </Card>
@@ -231,8 +246,8 @@ export default function ProfilePage() {
                             #{loan.id}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-brown-600">
-                          {loan.amount.toLocaleString()}
+                        <td className="px-4 py-3 text-brown-600 dark:text-cream-50">
+                          <MoneyAmount value={loan.amount} fromStroops interactive={false} />
                         </td>
                         <td className="px-4 py-3 text-brown-600">
                           {loan.health_factor != null ? loan.health_factor.toFixed(2) : '—'}

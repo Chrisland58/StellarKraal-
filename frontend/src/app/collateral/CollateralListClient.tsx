@@ -1,10 +1,11 @@
-"use client";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import SearchFilterBar from "@/components/SearchFilterBar";
-import HighlightText from "@/components/HighlightText";
-import PageTransition from "@/components/PageTransition";
-import { useScrollPosition } from "@/hooks/useScrollPosition";
+'use client';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import SearchFilterBar from '@/components/SearchFilterBar';
+import HighlightText from '@/components/HighlightText';
+import PageTransition from '@/components/PageTransition';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
+import MoneyAmount from '@/components/MoneyAmount';
 
 interface Collateral {
   id: string;
@@ -15,8 +16,8 @@ interface Collateral {
 }
 
 const STATUS_OPTIONS: string[] = [];
-const TYPE_OPTIONS = ["cattle", "goat", "sheep", "pig", "poultry"];
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const TYPE_OPTIONS = ['cattle', 'goat', 'sheep', 'pig', 'poultry'];
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 function CollateralListContent() {
   const searchParams = useSearchParams();
@@ -32,8 +33,8 @@ function CollateralListContent() {
       .finally(() => setLoading(false));
   }, []);
 
-  const q = (searchParams.get("q") ?? "").toLowerCase();
-  const types = searchParams.getAll("type");
+  const q = (searchParams.get('q') ?? '').toLowerCase();
+  const types = searchParams.getAll('type');
 
   const filtered = items.filter((col) => {
     const matchesQuery =
@@ -72,7 +73,9 @@ function CollateralListContent() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium text-brown">{col.appraised_value.toLocaleString()}</p>
+                <p className="text-sm font-medium text-brown dark:text-cream-50">
+                  <MoneyAmount value={col.appraised_value} fromStroops interactive={false} />
+                </p>
                 <p className="text-xs text-brown/50">
                   ID: <HighlightText text={col.id} query={q} />
                 </p>

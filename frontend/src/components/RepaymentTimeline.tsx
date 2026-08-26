@@ -1,5 +1,7 @@
 'use client';
 
+import { formatFiat, formatXlm } from '@/lib/formatMoney';
+
 interface Installment {
   date: string;
   amount: number;
@@ -76,8 +78,10 @@ export default function RepaymentTimeline({
                     <p className="text-xs font-semibold text-brown/70 mb-1">
                       {formatDate(installment.date)}
                     </p>
-                    <p className="text-lg font-bold text-brown mb-2">
-                      {installment.amount.toFixed(2)} {currency}
+                    <p className="text-lg font-bold text-brown dark:text-cream-50 mb-2">
+                      {currency === 'XLM'
+                        ? formatXlm(installment.amount)
+                        : formatFiat(installment.amount, currency)}
                     </p>
                   </div>
                   <div

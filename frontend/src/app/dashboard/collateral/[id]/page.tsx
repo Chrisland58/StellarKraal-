@@ -5,6 +5,8 @@ import WalletConnect from '@/components/WalletConnect';
 import Card from '@/components/Card';
 import Skeleton from '@/components/Skeleton';
 import ErrorState from '@/components/ErrorState';
+import MoneyAmount from '@/components/MoneyAmount';
+import { formatFiat } from '@/lib/formatMoney';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -115,13 +117,11 @@ export default function CollateralDetailPage() {
     );
   }
 
-  const xlmValue = (collateral.appraised_value / 1e7).toFixed(2);
-  const usdValue = (parseFloat(xlmValue) * 0.12).toFixed(2);
+  const usdValue = (collateral.appraised_value / 1e7) * 0.12;
   const icon = ANIMAL_ICONS[collateral.animal_type] || '🐾';
 
   // Derive outstanding balance and a simple health factor from loans
   const totalOutstanding = loans.reduce((sum, l) => sum + l.amount, 0);
-  const outstandingXlm = (totalOutstanding / 1e7).toFixed(2);
   // Health factor: collateral value / outstanding balance (in bps, 10000 = 1.0)
   const healthFactorBps =
     totalOutstanding > 0
@@ -183,8 +183,9 @@ export default function CollateralDetailPage() {
           <p className="text-xs font-medium text-brown-500 uppercase tracking-wide mb-1">
             Outstanding Balance
           </p>
-          <p className="text-4xl font-bold text-brown-700 dark:text-cream-50">{outstandingXlm}</p>
-          <p className="text-xs text-brown-500 mt-1">XLM</p>
+          <p className="text-4xl font-bold text-brown-700 dark:text-cream-50">
+            <MoneyAmount value={totalOutstanding} fromStroops className="text-4xl font-bold" />
+          </p>
         </Card>
       </div>
 
@@ -207,8 +208,12 @@ export default function CollateralDetailPage() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div>
             <p className="text-brown-500 mb-0.5">Appraised Value</p>
-            <p className="font-semibold text-brown-700 dark:text-cream-50">{xlmValue} XLM</p>
-            <p className="text-xs text-brown-400">${usdValue} USD</p>
+            <p className="font-semibold text-brown-700 dark:text-cream-50">
+              <MoneyAmount value={collateral.appraised_value} fromStroops interactive={false} />
+            </p>
+            <p className="text-xs text-brown-400">
+              <MoneyAmount value={usdValue} currency="USD" interactive={false} />
+            </p>
           </div>
           <div>
             <p className="text-brown-500 mb-0.5">Registered</p>
@@ -245,8 +250,7 @@ export default function CollateralDetailPage() {
         >
           <div className="space-y-3">
             {loans.map((loan) => {
-              const loanXlm = (loan.amount / 1e7).toFixed(2);
-              const loanUsd = (parseFloat(loanXlm) * 0.12).toFixed(2);
+              const loanUsd = (loan.amount / 1e7) * 0.12;
               return (
                 <div
                   key={loan.id}
@@ -261,8 +265,10 @@ export default function CollateralDetailPage() {
                     </span>
                   </div>
                   <p className="text-lg font-bold text-brown-700 dark:text-cream-50 mt-1">
-                    {loanXlm} XLM{' '}
-                    <span className="text-sm font-normal text-brown-500">(${loanUsd})</span>
+                    <MoneyAmount value={loan.amount} fromStroops interactive={false} />{' '}
+                    <span className="text-sm font-normal text-brown-500">
+                      ({formatFiat(loanUsd, 'USD')})
+                    </span>
                   </p>
                 </div>
               );

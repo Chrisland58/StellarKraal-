@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import Card from '@/components/Card';
 import SkeletonCollateralCard from '@/components/SkeletonCollateralCard';
 import EmptyState from '@/components/EmptyState';
-import { healthColor, healthTier, HEALTH_TIER_ICON, HEALTH_TIER_LABEL } from '@/lib/design-tokens';
+import MoneyAmount from '@/components/MoneyAmount';
+import { formatFiat, formatXlmNumber } from '@/lib/formatMoney';
+import { healthColor } from '@/lib/design-tokens';
 
 interface Collateral {
   id: string;
@@ -67,11 +69,13 @@ export default function CollateralGrid({
       c.id,
       c.animal_type,
       c.count.toString(),
-      (c.appraised_value / 1e7).toFixed(2),
+      formatXlmNumber(c.appraised_value / 1e7),
       new Date(c.createdAt).toLocaleDateString(),
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -187,8 +191,7 @@ export default function CollateralGrid({
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {collaterals.map((collateral) => {
-          const xlmValue = (collateral.appraised_value / 1e7).toFixed(2);
-          const usdValue = (parseFloat(xlmValue) * 0.12).toFixed(2);
+          const usdValue = (collateral.appraised_value / 1e7) * 0.12;
           const icon = ANIMAL_ICONS[collateral.animal_type] || '🐾';
           const healthFactorBps = collateral.health_factor_bps;
           const showHealthIndicator = healthFactorBps !== undefined && healthFactorBps !== null;
@@ -249,7 +252,9 @@ export default function CollateralGrid({
                     </div>
                   }
                   footer={
-                    <p className="text-xs text-brown-500 font-mono">ID: {collateral.id.slice(0, 8)}…</p>
+                    <p className="text-xs text-brown-500 font-mono">
+                      ID: {collateral.id.slice(0, 8)}…
+                    </p>
                   }
                 >
                   <h3 className="text-lg font-semibold text-brown-700 dark:text-cream-50 mb-3 capitalize">
@@ -258,8 +263,16 @@ export default function CollateralGrid({
                   <div className="space-y-2">
                     <div>
                       <p className="text-xs text-brown-500 mb-0.5">Appraised Value</p>
-                      <p className="font-semibold text-brown-700 dark:text-cream-50">{xlmValue} XLM</p>
-                      <p className="text-xs text-brown-500">${usdValue} USD</p>
+                      <p className="font-semibold text-brown-700 dark:text-cream-50">
+                        <MoneyAmount
+                          value={collateral.appraised_value}
+                          fromStroops
+                          interactive={false}
+                        />
+                      </p>
+                      <p className="text-xs text-brown-500 dark:text-brown-300">
+                        {formatFiat(usdValue, 'USD')}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-brown-500 mb-0.5">Registered</p>

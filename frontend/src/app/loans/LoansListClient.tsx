@@ -16,9 +16,9 @@ interface Loan {
   createdAt: string;
 }
 
-const STATUS_OPTIONS = ["active", "repaid", "liquidated", "pending"];
+const STATUS_OPTIONS = ['active', 'repaid', 'liquidated', 'pending'];
 const TYPE_OPTIONS: string[] = [];
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 /** Maps loan status to design-token badge classes (WCAG AA compliant). */
 function statusBadgeClasses(status: string): string {
@@ -64,8 +64,8 @@ function LoanListContent() {
       .finally(() => setLoading(false));
   }, []);
 
-  const q = (searchParams.get("q") ?? "").toLowerCase();
-  const statuses = searchParams.getAll("status");
+  const q = (searchParams.get('q') ?? '').toLowerCase();
+  const statuses = searchParams.getAll('status');
 
   const filtered = loans.filter((loan) => {
     const matchesQuery =
