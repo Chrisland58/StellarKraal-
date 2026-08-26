@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import NotFoundPath from "./NotFoundPath";
 
 export const metadata: Metadata = {
   title: "404 Not Found — StellarKraal",
   description: "The page you requested could not be found on StellarKraal.",
 };
 
+const NAV_LINKS = [
+  { href: "/dashboard", label: "Dashboard", icon: "⊞" },
+  { href: "/borrow", label: "Borrow", icon: "💰" },
+  { href: "/collateral", label: "Collateral", icon: "🐄" },
+] as const;
+
 export default function NotFound() {
   return (
-    <main className="min-h-screen bg-cream flex flex-col items-center justify-center px-4 text-center">
+    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center">
       {/* Illustration */}
       <div aria-hidden="true" className="mb-8">
         <svg
@@ -21,7 +28,13 @@ export default function NotFound() {
           aria-label="Lost cow illustration"
         >
           <circle cx="60" cy="60" r="56" fill="#FDF6EC" stroke="#D4A017" strokeWidth="3" />
-          <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fontSize="52">
+          <text
+            x="50%"
+            y="54%"
+            dominantBaseline="middle"
+            textAnchor="middle"
+            fontSize="52"
+          >
             🐄
           </text>
         </svg>
@@ -29,8 +42,13 @@ export default function NotFound() {
 
       <h1 className="text-6xl font-bold text-brown mb-2">404</h1>
       <h2 className="text-2xl font-semibold text-brown mb-3">Page not found</h2>
+
+      {/* Shows the invalid path that was requested */}
+      <NotFoundPath />
+
       <p className="text-brown/60 max-w-sm mb-8">
-        Looks like this page wandered off the pasture. Let&apos;s get you back on track.
+        Looks like this page wandered off the pasture. Let&apos;s get you back on
+        track.
       </p>
 
       {/* Navigation suggestions */}
@@ -41,19 +59,17 @@ export default function NotFound() {
         >
           Go home
         </Link>
-        <Link
-          href="/dashboard"
-          className="border border-brown/30 text-brown font-semibold px-6 py-3 rounded-xl hover:border-brown/60 transition focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          Dashboard
-        </Link>
-        <Link
-          href="/help/faq"
-          className="border border-brown/30 text-brown font-semibold px-6 py-3 rounded-xl hover:border-brown/60 transition focus:outline-none focus:ring-2 focus:ring-gold"
-        >
-          FAQ
-        </Link>
+        {NAV_LINKS.map(({ href, label, icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className="border border-brown/30 text-brown font-semibold px-6 py-3 rounded-xl hover:border-brown/60 transition focus:outline-none focus:ring-2 focus:ring-gold flex items-center gap-2 justify-center"
+          >
+            <span aria-hidden="true">{icon}</span>
+            {label}
+          </Link>
+        ))}
       </nav>
-    </main>
+    </div>
   );
 }

@@ -62,10 +62,16 @@ coverage/
 # Jest / Vitest snapshots
 *.snap
 **/__snapshots__/
+# Exception: allow Playwright visual regression baseline PNGs in tests/visual/__snapshots__
+!frontend/tests/visual/__snapshots__/
+!frontend/tests/visual/__snapshots__/**
 # Playwright
 playwright-report/
 test-results/
 .playwright/
+# Visual regression baseline images — stored in tests/visual/__snapshots__/
+# PNGs committed as baselines are tracked; diff/actual outputs from failed
+# runs go to playwright-report/ which is excluded above.
 # Audit reports (generated output)
 frontend/audit-reports/
 
@@ -107,6 +113,16 @@ frontend/tsconfig.tsbuildinfo
 
 # ── Claude AI agent settings ──────────────────────────────────────────────────
 .claude/
+
+# ── Cargo / Rust build output ─────────────────────────────────────────────────
+cargo_out.txt
+
+# ── Stray / internal session files ────────────────────────────────────────────
+# (these are working-session artefacts, not project source)
+stellarkreal
+tatus
+PUSH_SUCCESS.md
+PR_DESCRIPTIONS.md
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 *.pem

@@ -62,12 +62,9 @@ export default function StepAmount() {
 
       {/* Amount input */}
       <div>
-        <Input
+        <NumericInput
           label="Loan Amount (stroops)"
-          type="number"
-          min="1"
-          max={maxLoan}
-          placeholder="e.g. 5000000"
+          placeholder="e.g. 5,000,000"
           value={loanAmount}
           onChange={(e) => setField('loanAmount', e.target.value)}
         />
