@@ -59,6 +59,11 @@ jest.mock("@/components/PriceChart", () => ({
   PriceChart: () => <div data-testid="price-chart-mock" />,
 }));
 
+// Mock Sparkline
+jest.mock("@/components/Sparkline", () => ({
+  default: () => <div data-testid="sparkline-mock" />,
+}));
+
 const mockRecord = {
   id: "col-1",
   owner: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
@@ -310,6 +315,52 @@ describe("CollateralDetailPage", () => {
       });
       // No collateral photo img element should be rendered
       expect(screen.queryByRole("img", { name: /collateral photo/i })).toBeNull();
+    });
+  });
+
+  describe("copy collateral ID (#864)", () => {
+    it("renders a copy button next to the collateral ID", async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: async () => mockRecord,
+      } as Response);
+
+      render(<CollateralDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/col-1/)).toBeInTheDocument();
+      });
+
+      const copyBtn = screen.getByRole("button", { name: /copy collateral id/i });
+      expect(copyBtn).toBeInTheDocument();
+    });
+
+    it("copies the collateral ID to clipboard and shows Copied feedback", async () => {
+      const clipboardMock = jest.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: clipboardMock },
+        writable: true,
+        configurable: true,
+      });
+
+      global.fetch = jest.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: async () => mockRecord,
+      } as Response);
+
+      render(<CollateralDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/col-1/)).toBeInTheDocument();
+      });
+
+      const copyBtn = screen.getByRole("button", { name: /copy collateral id/i });
+      fireEvent.click(copyBtn);
+
+      expect(clipboardMock).toHaveBeenCalledWith("col-1");
+      expect(screen.getByRole("button", { name: /collateral id copied/i })).toBeInTheDocument();
     });
   });
 });

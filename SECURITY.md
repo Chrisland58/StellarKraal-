@@ -152,3 +152,4 @@ The following practices are in place to protect the StellarKraal codebase:
 - **Soroban contract audits** are documented in [`docs/security/contract-audit.md`](docs/security/contract-audit.md).
 - **Secrets management**: All secrets are stored in environment variables. See [docs/security/secrets-rotation.md](docs/security/secrets-rotation.md) for rotation procedures.
 - **Audit logs**: Admin and state-changing operations are logged to `AUDIT_LOG_DIR` for forensic analysis.
+- **Incident response**: See [docs/security/incident-response.md](docs/security/incident-response.md) for the security incident response runbook.
