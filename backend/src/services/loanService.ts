@@ -27,6 +27,12 @@ import rpcClient from "../utils/rpcClient";
 const SCALE = 10_000;
 const SIMULATION_ACCOUNT = "GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6";
 
+/**
+ * Zod schema that validates a loan request payload.
+ * Ensures `borrower` is a valid Stellar public key, `collateral_ids` is a
+ * non-empty array of non-negative integers, `amount` is a positive integer,
+ * and `min_disbursement` is an optional positive integer.
+ */
 export const loanRequestSchema = z.object({
   borrower: stellarPublicKeySchema,
   collateral_ids: z.array(z.number().int().nonnegative()).min(1),
@@ -34,50 +40,99 @@ export const loanRequestSchema = z.object({
   min_disbursement: z.number().int().positive().optional(),
 });
 
+/**
+ * Zod schema that validates a loan repayment payload.
+ * Ensures `borrower` is a valid Stellar public key, `loan_id` is a
+ * non-negative integer, and `amount` is a positive integer.
+ */
 export const loanRepaySchema = z.object({
   borrower: stellarPublicKeySchema,
   loan_id: z.number().int().nonnegative(),
   amount: z.number().int().positive(),
 });
 
+/**
+ * Zod schema that validates a loan liquidation payload.
+ * Ensures `liquidator` is a valid Stellar public key, `loan_id` is a
+ * non-negative integer, and `repay_amount` is a positive integer.
+ */
 export const loanLiquidateSchema = z.object({
   liquidator: stellarPublicKeySchema,
   loan_id: z.number().int().nonnegative(),
   repay_amount: z.number().int().positive(),
 });
 
+/** Inferred TypeScript type for a validated loan request payload. */
 export type LoanRequestInput = z.infer<typeof loanRequestSchema>;
+
+/** Inferred TypeScript type for a validated loan repayment payload. */
 export type LoanRepayInput = z.infer<typeof loanRepaySchema>;
+
+/** Inferred TypeScript type for a validated loan liquidation payload. */
 export type LoanLiquidateInput = z.infer<typeof loanLiquidateSchema>;
 
+/**
+ * Query parameters accepted by the paginated loan list endpoint.
+ * All fields are optional strings because they originate from URL query params.
+ */
 export interface ListLoansQuery {
+  /** 1-based page number (default: 1). */
   page?: string;
+  /** Alias for `limit` used by newer API clients (takes precedence). */
   pageSize?: string;
+  /** Maximum number of records per page (max: 100, default: 20). */
   limit?: string;
+  /** Filter by loan status: `"active"` | `"repaid"` | `"liquidated"`. */
   status?: string;
+  /** Filter to loans belonging to this Stellar address. */
   borrowerAddress?: string;
+  /** ISO 8601 start date for `created_at` range filter. */
   from?: string;
+  /** ISO 8601 end date for `created_at` range filter. */
   to?: string;
 }
 
+/**
+ * Shape of the object returned by {@link listLoansPaginated}.
+ */
 export interface ListLoansResult {
+  /** Slice of loan records for the requested page. */
   data: ReturnType<typeof listLoans>["data"];
+  /** Total number of loans matching the applied filters. */
   total: number;
+  /** Current 1-based page number. */
   page: number;
+  /** Effective page size used for this request. */
   limit: number;
+  /** Alias for `limit` provided for API-v2 compatibility. */
   pageSize: number;
 }
 
+/**
+ * Thrown when a requested loan ID does not exist in the local database.
+ */
 export class LoanNotFoundError extends Error {
+  /**
+   * @param loanId - The ID that was looked up.
+   */
   constructor(loanId: number | string) {
     super(`Loan ${loanId} not found`);
     this.name = "LoanNotFoundError";
   }
 }
 
+/**
+ * Thrown when a liquidation is attempted but the loan's health factor
+ * is at or above the liquidation threshold (i.e., the loan is healthy).
+ */
 export class LoanNotLiquidatableError extends Error {
+  /** The computed health factor at the time of the failed liquidation attempt. */
   healthFactor: number | null;
 
+  /**
+   * @param healthFactor - Computed health factor (scaled by 10 000), or `null`
+   *   when the value cannot be determined.
+   */
   constructor(healthFactor: number | null) {
     super("Loan health factor is above liquidation threshold");
     this.name = "LoanNotLiquidatableError";
@@ -85,7 +140,15 @@ export class LoanNotLiquidatableError extends Error {
   }
 }
 
+/**
+ * Thrown when pagination or filter query parameters are malformed or out of
+ * the accepted range.
+ */
 export class InvalidPaginationError extends Error {
+  /**
+   * @param message - Optional human-readable description of the validation
+   *   failure (defaults to a generic message).
+   */
   constructor(message = "Invalid pagination parameters") {
     super(message);
     this.name = "InvalidPaginationError";
@@ -93,9 +156,11 @@ export class InvalidPaginationError extends Error {
 }
 
 /**
- * Builds a request_loan contract transaction and fires approval webhooks.
- * @param input - Validated loan request payload.
- * @returns Unsigned XDR transaction for client signing.
+ * Builds a `request_loan` contract transaction and fires approval webhooks.
+ *
+ * @param input - Validated loan request payload (see {@link loanRequestSchema}).
+ * @returns Unsigned XDR transaction envelope for client-side signing.
+ * @throws If the RPC simulation or transaction preparation fails.
  */
 export async function requestLoan(input: LoanRequestInput): Promise<{ xdr: string }> {
   const { borrower, collateral_ids, amount, min_disbursement } = input;
@@ -117,9 +182,11 @@ export async function requestLoan(input: LoanRequestInput): Promise<{ xdr: strin
 }
 
 /**
- * Builds a repay_loan contract transaction and fires repayment webhooks.
- * @param input - Validated loan repayment payload.
- * @returns Unsigned XDR transaction for client signing.
+ * Builds a `repay_loan` contract transaction and fires repayment webhooks.
+ *
+ * @param input - Validated loan repayment payload (see {@link loanRepaySchema}).
+ * @returns Unsigned XDR transaction envelope for client-side signing.
+ * @throws If the RPC simulation or transaction preparation fails.
  */
 export async function repayLoan(input: LoanRepayInput): Promise<{ xdr: string }> {
   const { borrower, loan_id, amount } = input;
@@ -133,11 +200,20 @@ export async function repayLoan(input: LoanRepayInput): Promise<{ xdr: string }>
 }
 
 /**
- * Validates liquidation eligibility, builds contract tx, and updates local state.
- * @param input - Validated liquidation payload.
- * @returns Unsigned XDR and updated loan record.
- * @throws LoanNotFoundError when the loan does not exist.
- * @throws LoanNotLiquidatableError when health factor is above threshold.
+ * Validates liquidation eligibility, builds the on-chain `liquidate` transaction,
+ * updates local state, and fires liquidation webhooks.
+ *
+ * Health factor is computed off-chain as:
+ * `(collateral_value × 8000) / (loan_amount × SCALE)`.
+ * A value below `SCALE` (10 000) is considered under-collateralised and eligible
+ * for liquidation.
+ *
+ * @param input - Validated liquidation payload (see {@link loanLiquidateSchema}).
+ * @returns Unsigned XDR and the updated loan record with status `"liquidated"`.
+ * @throws {@link LoanNotFoundError} When the loan ID does not exist in the database.
+ * @throws {@link LoanNotLiquidatableError} When the health factor is at or above
+ *   the liquidation threshold.
+ * @throws If the RPC simulation or transaction preparation fails.
  */
 export async function liquidateLoan(input: LoanLiquidateInput) {
   const { liquidator, loan_id, repay_amount } = input;
@@ -184,9 +260,15 @@ export async function liquidateLoan(input: LoanLiquidateInput) {
 }
 
 /**
- * Simulates get_loan on the Soroban contract.
- * @param loanId - On-chain loan identifier.
- * @returns Simulated contract return value.
+ * Simulates the `get_loan` Soroban entry-point and returns its raw result.
+ *
+ * Uses a well-known Stellar account (`GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6`)
+ * solely for simulation — the account does not need to sign.
+ *
+ * @param loanId - On-chain loan identifier (u64 encoded as a string).
+ * @returns The raw `retval` from the contract simulation, or `undefined` when
+ *   the simulation produces no return value.
+ * @throws If the RPC call fails or the contract is not deployed.
  */
 export async function getLoanOnChain(loanId: string) {
   const contract = new Contract(CONTRACT_ID);
@@ -205,9 +287,15 @@ export async function getLoanOnChain(loanId: string) {
 }
 
 /**
- * Simulates health_factor on the Soroban contract.
- * @param loanId - On-chain loan identifier.
- * @returns Simulated health factor value.
+ * Simulates the `health_factor` Soroban entry-point and returns the result.
+ *
+ * Uses a well-known Stellar account solely for simulation — the account does
+ * not need to sign.
+ *
+ * @param loanId - On-chain loan identifier (u64 encoded as a string).
+ * @returns The raw health factor `retval` from the contract simulation, or
+ *   `undefined` when the simulation produces no return value.
+ * @throws If the RPC call fails or the contract is not deployed.
  */
 export async function getHealthFactor(loanId: string) {
   const contract = new Contract(CONTRACT_ID);
@@ -226,10 +314,16 @@ export async function getHealthFactor(loanId: string) {
 }
 
 /**
- * Lists loans with pagination and optional filters.
- * @param query - Query string parameters from the HTTP request.
- * @returns Paginated loan list.
- * @throws InvalidPaginationError when pagination or filter params are invalid.
+ * Lists loans with pagination and optional status / date / borrower filters.
+ *
+ * Normalises both `pageSize` (new) and `limit` (legacy) query parameters and
+ * delegates to the database store. Validates all inputs before querying.
+ *
+ * @param query - Query string parameters forwarded from the HTTP request.
+ * @returns A paginated result object containing the loan data and metadata.
+ * @throws {@link InvalidPaginationError} When `page` or `limit`/`pageSize` are
+ *   non-integer or out of range, when `status` is not one of the accepted
+ *   values, or when `from`/`to` are not parseable ISO 8601 dates.
  */
 export function listLoansPaginated(query: ListLoansQuery): ListLoansResult {
   const pageRaw = query.page !== undefined ? Number(query.page) : 1;
