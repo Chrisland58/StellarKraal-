@@ -98,7 +98,7 @@ describe("Request Timeout Integration", () => {
   it("should handle multiple concurrent requests with timeouts", async () => {
     app.use(timeoutMiddleware(2000));
     app.get("/concurrent/:delay", async (req: Request, res: Response) => {
-      const delay = parseInt(req.params.delay, 10);
+      const delay = parseInt(req.params.delay as string, 10);
       await new Promise((resolve) => setTimeout(resolve, delay));
       res.json({ delay });
     });

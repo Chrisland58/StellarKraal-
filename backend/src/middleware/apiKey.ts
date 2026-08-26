@@ -62,7 +62,7 @@ apiKeyRouter.delete('/:id', (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const record = apiKeys.get(req.params.id);
+  const record = apiKeys.get(req.params.id as string);
   if (!record) {
     return res.status(404).json({ error: 'API key not found' });
   }

@@ -6,6 +6,8 @@ export interface WebhookRegistration {
   /** Per-webhook HMAC-SHA256 secret. Returned once on registration; store securely. */
   secret: string;
   createdAt: number;
+  /** Whether payloads are encrypted with AES-256-GCM. Defaults to false. */
+  encrypt: boolean;
 }
 
 export interface DeliveryLog {
@@ -39,13 +41,13 @@ export function __resetForTests(): void {
  * @returns 32-byte Buffer suitable for AES-256-GCM.
  */
 export function deriveEncryptionKey(secret: string): Buffer {
-  return crypto.hkdfSync(
+  return Buffer.from(crypto.hkdfSync(
     "sha256",
     Buffer.from(secret, "utf8"),
     Buffer.alloc(0), // empty salt
     Buffer.from("stellarkraal-webhook-encryption", "utf8"),
     32
-  );
+  ));
 }
 
 /**
@@ -126,7 +128,7 @@ export function registerWebhook(url: string, encrypt = false): WebhookRegistrati
   }
   const id = crypto.randomUUID();
   const secret = crypto.randomBytes(32).toString("hex");
-  const reg: WebhookRegistration = { id, url, secret, createdAt: Date.now() };
+  const reg: WebhookRegistration = { id, url, secret, createdAt: Date.now(), encrypt };
   webhooks.set(id, reg);
   return reg;
 }

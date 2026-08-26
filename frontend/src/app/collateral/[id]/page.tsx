@@ -121,13 +121,20 @@ export default function CollateralDetailPage() {
   const latestValue = record.appraised_value;
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-10">
-      <Link href="/dashboard" className="text-brown/60 hover:text-brown text-sm mb-6 inline-block">
+    <main className="max-w-2xl mx-auto px-4 py-10" data-print="content">
+      <Link
+        href="/dashboard"
+        className="text-brown/60 hover:text-brown text-sm mb-6 inline-block no-print"
+        data-print="hide"
+      >
         ← Back to Dashboard
       </Link>
 
       {/* Animal profile */}
-      <div className="bg-white rounded-2xl p-6 shadow mb-6 flex gap-6 items-start">
+      <div
+        className="bg-white rounded-2xl p-6 shadow mb-6 flex gap-6 items-start collateral-detail-card"
+        data-print="show"
+      >
         {record.photo_url ? (
           <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
             <Image
@@ -179,7 +186,10 @@ export default function CollateralDetailPage() {
       </div>
 
       {/* Current appraised value */}
-      <div className="bg-gold/10 border border-gold/30 rounded-2xl p-6 shadow mb-6 text-center">
+      <div
+        className="bg-gold/10 border border-gold/30 rounded-2xl p-6 shadow mb-6 text-center loan-summary-card"
+        data-print="show"
+      >
         <p className="text-sm text-brown/60 mb-1">Current Appraised Value</p>
         <p className="text-4xl font-bold text-brown">{(latestValue / 1e7).toFixed(2)} <span className="text-xl font-normal text-brown/60">XLM</span></p>
         {record.appraisal_history.length >= 2 && (
@@ -190,7 +200,7 @@ export default function CollateralDetailPage() {
       </div>
 
       {/* Appraisal history */}
-      <div className="bg-white rounded-2xl p-6 shadow">
+      <div className="bg-white rounded-2xl p-6 shadow loan-summary-card" data-print="show">
         <h2 className="text-lg font-semibold text-brown mb-4">Appraisal History</h2>
         {record.appraisal_history.length === 0 ? (
           <p className="text-brown/50 text-sm">No appraisal history yet.</p>
@@ -214,8 +224,8 @@ export default function CollateralDetailPage() {
         )}
       </div>
 
-      {/* Price history chart */}
-      <div className="mt-6">
+      {/* Price history chart — hidden when printing (canvas-based) */}
+      <div className="mt-6 no-print" data-print="hide">
         <PriceChart
           url={`${API}/api/v1/collateral/${id}/appraisals`}
           label="Price History"

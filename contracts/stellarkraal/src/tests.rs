@@ -1156,7 +1156,6 @@ fn test_all_blocked_functions_succeed_after_unpause() {
     let col_ids = vec![&env, col_id];
     assert_eq!(
         client.try_request_loan(&owner, &col_ids, &600_000i128, &None),
-        client.try_request_loan(&owner, &col_ids, &600_000i128),
         Err(Ok(Error::ContractPaused)),
         "request_loan must be blocked (#13)"
     );
@@ -2001,19 +2000,16 @@ fn test_health_factor_fresh_price() {
 
     let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
     let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000, &None);
-    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000, &None);
 
     env.ledger().with_mut(|li| {
         li.timestamp += 1800;
     });
 
+    // Health factor should still be healthy with fresh price (within staleness window)
+    let hf = client.health_factor(&loan_id);
+    assert!(hf > 0, "health factor must be positive with fresh price, got {}", hf);
 
-
-    assert_eq!(client.get_loan_count(&borrower), 3);
-    assert_eq!(client.get_loan_count(&other_borrower), 1);
-
-    client.repay_loan(&borrower, &loan1, &400_000);
-    assert_eq!(client.get_loan_count(&borrower), 2);
+    let _ = (admin, oracle, token, treasury);
 }
 
 // ── price staleness tests (issue #652) ─────────────────────────────────
@@ -2028,7 +2024,6 @@ fn test_health_factor_threshold_boundary() {
 
     let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2, &1_000_000);
     let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000, &None);
-    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000, &None);
 
     env.ledger().with_mut(|li| {
         li.timestamp += 3600;
@@ -2036,6 +2031,8 @@ fn test_health_factor_threshold_boundary() {
 
     let hf = client.health_factor(&loan_id);
     assert!(hf >= 10_000);
+
+    let _ = (admin, oracle, token, treasury);
 }
 
 #[test]
@@ -2183,7 +2180,7 @@ fn test_loan_with_deadline_stores_due_ledger() {
     // Request 60 000 000 stroops (at LTV)
     let now = env.ledger().timestamp();
     let duration = 86_400u64; // 1 day
-    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &60_000_000i128, &Some(duration), &None);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &60_000_000i128, &Some(duration));
     let loan = client.get_loan(&loan_id);
     let expected = now + duration;
     assert_eq!(loan.due_ledger, Some(expected), "due_ledger should be now + duration");
@@ -2199,7 +2196,7 @@ fn test_request_loan_at_min_succeeds() {
     let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
     let now = env.ledger().timestamp();
     let duration = 86_400u64; // 1 day
-    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000i128, &Some(duration), &None);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000i128, &Some(duration));
     let loan = client.get_loan(&loan_id);
     let expected = now + duration;
     assert_eq!(loan.due_ledger, Some(expected), "due_ledger should be now + duration");
@@ -2213,7 +2210,7 @@ fn test_health_factor_not_past_due() {
     let borrower = Address::generate(&env);
     let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
     // Set deadline 2 days from now (172800 seconds), deadline 1000 seconds ahead
-    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000i128, &Some(172_800u64), &None);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000i128, &Some(172_800u64));
     // Advance time by 1000 seconds (well within the deadline and staleness window)
     env.ledger().with_mut(|li| { li.timestamp += 1000; });
     let hf = client.health_factor(&loan_id);
@@ -2228,7 +2225,7 @@ fn test_health_factor_past_due_returns_zero() {
     let borrower = Address::generate(&env);
     let col_id = client.register_livestock(&borrower, &symbol_short!("cattle"), &2u32, &1_000_000i128);
     // Set deadline 1 second from now
-    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000i128, &Some(1u64), &None);
+    let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &600_000i128, &Some(1u64));
     // Advance time past the deadline but within the staleness window
     env.ledger().with_mut(|li| { li.timestamp += 100; });
     let hf = client.health_factor(&loan_id);
@@ -2251,6 +2248,7 @@ fn test_get_liquidation_threshold_after_update() {
     let (env, cid, admin, oracle, token, treasury) = setup();
     init(&env, &cid, &admin, &oracle, &token, &treasury);
     let client = StellarKraalClient::new(&env, &cid);
+    let borrower = Address::generate(&env);
     client.set_liquidation_threshold(&admin, &9000u32);
     assert_eq!(client.get_liquidation_threshold(), 9000u32);
 
@@ -2259,6 +2257,8 @@ fn test_get_liquidation_threshold_after_update() {
     // borrow exactly MIN_LOAN = 10_000_000
     let loan_id = client.request_loan(&borrower, &vec![&env, col_id], &10_000_000, &None);
     assert!(loan_id > 0);
+
+    let _ = (oracle, token, treasury);
 }
 
 /// request_loan at MAX_LOAN must succeed when collateral is sufficient
@@ -2323,39 +2323,13 @@ fn test_migrate_storage_idempotent() {
 #[test]
 #[should_panic(expected = "#3")]
 fn test_migrate_storage_non_admin_fails() {
-    // Initial threshold is 8000 (set by init).
-    client.set_liquidation_threshold(&admin, &9000u32);
+    let (env, cid, admin, oracle, token, treasury) = setup();
+    init(&env, &cid, &admin, &oracle, &token, &treasury);
+    let client = StellarKraalClient::new(&env, &cid);
+    let attacker = Address::generate(&env);
 
-    let all_events = env.events().all();
-    // Find the LiqThrUpd event.
-    let found = all_events.iter().any(|e| {
-        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
-        if topics.len() < 2 {
-            return false;
-        }
-        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
-        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
-        t0.map(|s| s == symbol_short!("Admin")).unwrap_or(false)
-            && t1.map(|s| s == symbol_short!("LiqThrUpd")).unwrap_or(false)
-    });
-    assert!(found, "LiqThrUpd event not found");
-
-    // Verify the event data includes old and new threshold.
-    for e in all_events.iter() {
-        let topics: soroban_sdk::Vec<soroban_sdk::Val> = e.1.clone();
-        if topics.len() < 2 {
-            continue;
-        }
-        let t0: Result<Symbol, _> = topics.get(0).unwrap().try_into_val(&env);
-        let t1: Result<Symbol, _> = topics.get(1).unwrap().try_into_val(&env);
-        if t0.map(|s| s == symbol_short!("Admin")).unwrap_or(false)
-            && t1.map(|s| s == symbol_short!("LiqThrUpd")).unwrap_or(false)
-        {
-            let data: (u32, u32) = e.2.try_into_val(&env).expect("event data is (old, new)");
-            assert_eq!(data.0, 8000u32, "old threshold should be 8000");
-            assert_eq!(data.1, 9000u32, "new threshold should be 9000");
-        }
-    }
+    let _ = (admin, oracle, token, treasury);
+    client.migrate_storage(&attacker);
 }
 
 /// Only admin can call set_liquidation_threshold (existing auth check).
@@ -2752,7 +2726,6 @@ fn test_token_balance_full_liquidation_marks_loan_liquidated() {
     );
 
     let _ = (oracle, treasury);
-    client.set_liquidation_threshold(&attacker, &9000u32);
 }
 
 // ── #707: pause_activated and pause_lifted event schemas ───────────────

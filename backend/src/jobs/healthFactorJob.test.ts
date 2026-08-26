@@ -62,6 +62,7 @@ describe("runHealthFactorJob — threshold alerts", () => {
       animal_type: "cattle",
       count: 5,
       appraised_value: appraisedValue,
+      appraisal_history: [],
       createdAt: new Date().toISOString(),
       deletedAt: null,
     };
@@ -152,7 +153,8 @@ describe("runHealthFactorJob", () => {
       animal_type: "cattle",
       count: 5,
       appraised_value: 700,
-      createdAt: new Date().toISOString(),
+      appraisal_history: [],
+createdAt: new Date().toISOString(),
       deletedAt: null,
     };
 
@@ -185,7 +187,8 @@ describe("runHealthFactorJob", () => {
       animal_type: "cattle",
       count: 5,
       appraised_value: 1_000,
-      createdAt: new Date().toISOString(),
+      appraisal_history: [],
+createdAt: new Date().toISOString(),
       deletedAt: null,
     };
 
@@ -219,7 +222,8 @@ describe("runHealthFactorJob", () => {
       animal_type: "cattle",
       count: 5,
       appraised_value: 700,
-      createdAt: new Date().toISOString(),
+      appraisal_history: [],
+createdAt: new Date().toISOString(),
       deletedAt: null,
     };
 

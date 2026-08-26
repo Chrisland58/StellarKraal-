@@ -9,6 +9,7 @@ import ThemeProvider, { ThemeScript } from "@/components/ThemeProvider";
 import { ToastProvider, ToastContainer } from "@/components/toast";
 import SkipToContent from "@/components/SkipToContent";
 import NetworkMismatchBanner from "@/components/NetworkMismatchBanner";
+import PrintDateScript from "@/components/PrintDateScript";
 
 export const metadata: Metadata = {
   title: "StellarKraal — Livestock Micro-Lending",
@@ -30,6 +31,12 @@ export default function RootLayout({
           color: "var(--color-text)",
         }}
       >
+        {/*
+         * PrintDateScript injects the current date as data-print-date on <body>
+         * so the CSS print footer (body::after { content: attr(data-print-date) })
+         * can display the print date without a server round-trip (#811).
+         */}
+        <PrintDateScript />
         <ThemeScript />
         <ThemeProvider>
           <KeyboardShortcutsProvider>
@@ -37,9 +44,11 @@ export default function RootLayout({
               <SkipToContent />
               <NetworkMismatchBanner />
               <OfflineBanner />
-            {/* Top utility nav */}
+            {/* Top utility nav — hidden when printing */}
             <nav
-              className="flex gap-4 px-6 py-3 text-sm border-b"
+              className="flex gap-4 px-6 py-3 text-sm border-b no-print"
+              aria-label="Utility navigation"
+              data-print="hide"
               style={{
                 borderColor: "var(--color-nav-border)",
                 backgroundColor: "var(--color-nav-bg)",

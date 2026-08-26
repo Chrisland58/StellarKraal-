@@ -195,8 +195,9 @@ function handleEvent(event: SorobanRpc.Api.RawEventResponse): void {
       const vals = xdr.ScVal.fromXDR(event.value, "base64").vec?.() ?? [];
       if (vals.length < 3) return;
       const id = vals[0].u64?.().toString() ?? "";
-      const repayAmount = Number(vals[1].i128?.().lo ?? 0);
-      const collateralSeized = Number(vals[2].i128?.().lo ?? 0);
+      const liquidator = (() => { try { return Address.fromScVal(vals[1]).toString(); } catch { return ""; } })();
+      const repayAmount = Number(vals[2].i128?.().lo ?? 0);
+      const collateralSeized = Number(vals.length > 3 ? vals[3].i128?.().lo ?? 0 : 0);
       // Update loan status to liquidated in the DB
       updateLoan(id, { status: "liquidated" });
       // Update the corresponding transaction record
@@ -205,7 +206,6 @@ function handleEvent(event: SorobanRpc.Api.RawEventResponse): void {
       insertLiquidationEvent({ loan_id: id, liquidator, repay_amount: repayAmount });
       logEvent("contract.event.loan_liquidated_synced", event, {
         id,
-        borrower,
         liquidator,
         repayAmount,
         collateralSeized,

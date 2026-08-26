@@ -1,6 +1,7 @@
 'use client';
 import { forwardRef } from 'react';
 import Spinner from '@/components/Spinner';
+import { useRipple } from '@/hooks/useRipple';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -51,6 +52,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 /**
  * Button — primary interactive element.
  *
+ * Ripple effect (#809):
+ *  - Primary-variant buttons show a white 30%-opacity ripple radiating from
+ *    the pointer's click point (400 ms CSS animation via `.btn-ripple`).
+ *  - The effect is disabled when `prefers-reduced-motion` is set — both in CSS
+ *    (the `.ripple-wave` element is hidden) and in the JS hook (no DOM node
+ *    is created).
+ *  - The ripple does not fire when the button is disabled or loading.
+ *
  * Loading state (#783):
  *  - `isLoading` or `loading` prop shows a Spinner, prevents clicks.
  *  - `aria-busy="true"` signals the loading state to assistive technology.
@@ -77,6 +86,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     disabled,
     children,
     className = '',
+    onPointerDown,
     ...props
   },
   ref
@@ -88,17 +98,31 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const showSuccess = state === 'success';
   const showError = state === 'error';
 
+  // Ripple is only applied to primary buttons — it looks best on a solid
+  // coloured background. For other variants the class is omitted so the
+  // overflow:hidden required by the ripple doesn't clip e.g. ghost focus rings.
+  const { triggerRipple } = useRipple();
+  const isPrimary = state === 'idle' && variant === 'primary';
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (isPrimary) triggerRipple(e);
+    onPointerDown?.(e);
+  };
+
   return (
     <button
       ref={ref}
       disabled={isDisabled}
       aria-busy={isLoadingActive || undefined}
       aria-disabled={isDisabled || undefined}
+      onPointerDown={handlePointerDown}
       className={[
         'inline-flex items-center justify-center gap-2 font-semibold transition',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
         'focus-visible:ring-[color:var(--token-accent)]',
         'disabled:opacity-50 disabled:cursor-not-allowed',
+        // Ripple class adds `position:relative; overflow:hidden` for primary only
+        isPrimary ? 'btn-ripple' : '',
         state === 'idle' ? variantClasses[variant] : '',
         stateClasses[state],
         sizeClasses[size],

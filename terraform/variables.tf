@@ -23,7 +23,7 @@ variable "pagerduty_routing_key" {
 
 variable "backup_retention_days" {
   description = "Number of days to retain backups"
-  type        = "number"
+  type        = number
   default     = 30
 }
 

@@ -101,7 +101,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "cattle",
         count: 2,
         appraised_value: 50_000_000,
-        status: "active",
+        status: "available",
       });
       insertCollateral({
         id: "col-2",
@@ -109,7 +109,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "goat",
         count: 5,
         appraised_value: 25_000_000,
-        status: "active",
+        status: "available",
       });
 
       const res = await request(app).get("/api/v1/admin/stats");
@@ -122,21 +122,21 @@ describe("GET /api/v1/admin/stats", () => {
         id: "loan-1",
         borrower: "GAAA",
         collateral_id: "col-1",
-        principal_amount: 100_000_000,
+        amount: 100_000_000,
         status: "active",
       });
       insertLoan({
         id: "loan-2",
         borrower: "GBBB",
         collateral_id: "col-2",
-        principal_amount: 50_000_000,
+        amount: 50_000_000,
         status: "active",
       });
       insertLoan({
         id: "loan-3",
         borrower: "GCCC",
         collateral_id: "col-3",
-        principal_amount: 75_000_000,
+        amount: 75_000_000,
         status: "repaid",
       });
 
@@ -150,21 +150,21 @@ describe("GET /api/v1/admin/stats", () => {
         id: "loan-1",
         borrower: "GAAA",
         collateral_id: "col-1",
-        principal_amount: 100_000_000,
+        amount: 100_000_000,
         status: "active",
       });
       insertLoan({
         id: "loan-2",
         borrower: "GBBB",
         collateral_id: "col-2",
-        principal_amount: 50_000_000,
+        amount: 50_000_000,
         status: "at_risk",
       });
       insertLoan({
         id: "loan-3",
         borrower: "GCCC",
         collateral_id: "col-3",
-        principal_amount: 75_000_000,
+        amount: 75_000_000,
         status: "repaid",
       });
 
@@ -180,7 +180,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "cattle",
         count: 2,
         appraised_value: 100_000_000, // 10 XLM
-        status: "active",
+        status: "available",
       });
       insertCollateral({
         id: "col-2",
@@ -188,7 +188,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "goat",
         count: 5,
         appraised_value: 50_000_000, // 5 XLM
-        status: "active",
+        status: "available",
       });
 
       const res = await request(app).get("/api/v1/admin/stats");
@@ -203,7 +203,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "cattle",
         count: 2,
         appraised_value: 50_000_000,
-        status: "active",
+        status: "available",
       });
       insertCollateral({
         id: "col-2",
@@ -211,20 +211,20 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "goat",
         count: 5,
         appraised_value: 25_000_000,
-        status: "active",
+        status: "available",
       });
       insertLoan({
         id: "loan-1",
         borrower: "GAAA", // Same as owner of col-1
         collateral_id: "col-1",
-        principal_amount: 100_000_000,
+        amount: 100_000_000,
         status: "active",
       });
       insertLoan({
         id: "loan-2",
         borrower: "GCCC", // New user
         collateral_id: "col-2",
-        principal_amount: 50_000_000,
+        amount: 50_000_000,
         status: "active",
       });
 
@@ -243,7 +243,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "cattle",
         count: 2,
         appraised_value: 50_000_000,
-        status: "active",
+        status: "available",
       });
 
       // First request
@@ -258,7 +258,7 @@ describe("GET /api/v1/admin/stats", () => {
         animal_type: "goat",
         count: 5,
         appraised_value: 25_000_000,
-        status: "active",
+        status: "available",
       });
 
       // Second request (should return cached data)

@@ -30,6 +30,20 @@ import { updateProfileSchema } from '../validators/profile';
 import { validate } from '../middleware/validate';
 import { redact, auditLogger } from '../middleware/audit';
 import { etagMiddleware } from '../utils/etag';
+import {
+  loanRequestSchema,
+  loanRepaySchema,
+  loanLiquidateSchema,
+  requestLoan,
+  repayLoan,
+  liquidateLoan,
+  getLoanOnChain,
+  getHealthFactor,
+  listLoansPaginated,
+  LoanNotFoundError,
+  LoanNotLiquidatableError,
+  InvalidPaginationError,
+} from '../services/loanService';
 const APP_VERSION = process.env['npm_package_version'] || '1.0.0';
 const startTime = Date.now();
 
@@ -396,7 +410,7 @@ v1Router.post('/alerts/webhook', async (req: Request, res: Response) => {
 v1Router.get(
   '/admin/users',
   asyncHandler(async (_req: Request, res: Response) => {
-    const { data } = listLoans({ page: 1, pageSize: 1000 });
+    const { data } = listLoans({ page: 1, limit: 1000 });
     const users = [...new Set(data.map((l: any) => l.borrower))].map((borrower) => ({ borrower }));
     res.json({ data: users, total: users.length });
   })
@@ -406,7 +420,7 @@ v1Router.get(
 v1Router.get(
   '/admin/moderation-queue',
   asyncHandler(async (_req: Request, res: Response) => {
-    const { data } = listLoans({ page: 1, pageSize: 1000 });
+    const { data } = listLoans({ page: 1, limit: 1000 });
     const queue = (data as any[]).filter((l) => l.status === 'pending');
     res.json({ data: queue, total: queue.length });
   })
@@ -416,7 +430,7 @@ v1Router.get(
 v1Router.get(
   '/admin/statistics',
   asyncHandler(async (_req: Request, res: Response) => {
-    const { data, total } = listLoans({ page: 1, pageSize: 1000 });
+    const { data, total } = listLoans({ page: 1, limit: 1000 });
     const totalAmount = (data as any[]).reduce((sum, l) => sum + (l.amount || 0), 0);
     const byStatus = (data as any[]).reduce<Record<string, number>>((acc, l) => {
       acc[l.status] = (acc[l.status] || 0) + 1;

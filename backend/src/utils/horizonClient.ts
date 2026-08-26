@@ -36,9 +36,8 @@ export async function getAccountFromHorizon(address: string): Promise<any> {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Correlation-ID': correlationId,
+        'X-Correlation-ID': correlationId ?? '',
       },
-      timeout: 10000, // 10 second timeout
     });
 
     if (!response.ok) {

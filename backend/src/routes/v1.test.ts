@@ -90,7 +90,7 @@ describe("v1Router", () => {
       ];
 
       for (const endpoint of endpoints) {
-        const res = await request(app)[endpoint.method](endpoint.path);
+        const res = await (request(app) as any)[endpoint.method](endpoint.path);
         expect(res.body).toHaveProperty("api_version", "v1");
       }
     });

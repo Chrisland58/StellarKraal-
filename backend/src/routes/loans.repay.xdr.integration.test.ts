@@ -56,12 +56,11 @@ describe('POST /api/v1/loans/:id/repay XDR submission', () => {
 
   it('accepts signed XDR and submits it to RPC', async () => {
     const loan = await insertLoan({
+      id: 'loan-test-1',
       borrower: 'GBZ2...',
-      collateral_id: 1,
-      principal: 1000,
-      outstanding: 1000,
+      collateral_id: '1',
+      amount: 1000,
       status: 'active',
-      min_disbursement: null
     });
 
     const signedXdr = 'valid_xdr_string';

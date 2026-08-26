@@ -1,9 +1,5 @@
 "use client";
-import { useState } from "react";
-import { isConnected, getAddress, setAllowed } from "@stellar/freighter-api";
-import Tooltip from "@/components/Tooltip";
 import { useEffect } from "react";
-import { colors } from "@/lib/design-tokens";
 import { useWallet } from "@/hooks/useWallet";
 import Spinner from "@/components/Spinner";
 
@@ -11,24 +7,42 @@ interface Props {
   onConnect: (address: string) => void;
 }
 
+/**
+ * WalletConnect — #808
+ *
+ * Renders one of four visually-distinct states:
+ *   connecting   → spinner + "Connecting…" (button disabled)
+ *   connected    → green dot + truncated address + Disconnect button
+ *   error        → red dot + "Connect Failed" + retry button
+ *   disconnected → default "Connect Wallet" CTA
+ *
+ * All state transitions animate with a 150 ms fade via the `wc-fade`
+ * CSS animation defined in globals.css. The component is keyboard-navigable
+ * and screen-reader friendly (aria-live region announces state changes).
+ */
 export default function WalletConnect({ onConnect }: Props) {
-  const { address, freighterInstalled, connecting, error, connect } = useWallet();
+  const { address, freighterInstalled, connecting, error, connect, disconnect } =
+    useWallet();
 
   useEffect(() => {
     if (address) onConnect(address);
   }, [address, onConnect]);
 
+  // While Freighter detection is still in progress, render nothing.
   if (freighterInstalled === null) return null;
 
+  // ── Freighter not installed ──────────────────────────────────────────────
   if (!freighterInstalled) {
     return (
-      <div className="mb-6 rounded-xl border border-brown/30 bg-cream px-4 py-3 text-sm">
-        <p className="font-semibold text-brown mb-1">Freighter wallet not detected</p>
+      <div className="mb-6 rounded-xl border border-[color:var(--token-border-strong)] bg-[color:var(--token-surface)] px-4 py-3 text-sm">
+        <p className="font-semibold text-[color:var(--token-text)] mb-1">
+          Freighter wallet not detected
+        </p>
         <a
           href="https://freighter.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gold underline hover:text-gold/80"
+          className="text-[color:var(--token-accent)] underline hover:opacity-80 transition-opacity"
         >
           Install Freighter →
         </a>
@@ -36,33 +50,114 @@ export default function WalletConnect({ onConnect }: Props) {
     );
   }
 
+  // ── Connected ────────────────────────────────────────────────────────────
   if (address) {
+    const truncated = `${address.slice(0, 8)}…${address.slice(-6)}`;
     return (
       <div
-        className={`${colors.status.success.bg} rounded-xl px-4 py-3 mb-6 text-sm font-mono ${colors.status.success.text}`}
+        className="wc-fade mb-6 flex items-center justify-between gap-4 rounded-xl
+          border border-[color:var(--token-border)] bg-[color:var(--token-success-subtle)]
+          px-4 py-3 text-sm"
+        role="status"
+        aria-label={`Wallet connected: ${truncated}`}
       >
-        ✅ {address.slice(0, 8)}…{address.slice(-6)}
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Green status dot */}
+          <span
+            className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[color:var(--token-success)]"
+            aria-hidden="true"
+          />
+          <span className="font-mono text-[color:var(--token-success)] truncate font-semibold">
+            {truncated}
+          </span>
+        </div>
+        <button
+          onClick={disconnect}
+          className="flex-shrink-0 rounded-lg border border-[color:var(--token-border-strong)]
+            bg-transparent px-3 py-1.5 text-xs font-semibold text-[color:var(--token-text-subtle)]
+            transition-colors hover:bg-[color:var(--token-surface-raised)]
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--token-accent)]
+            focus-visible:ring-offset-1"
+          aria-label="Disconnect wallet"
+        >
+          Disconnect
+        </button>
       </div>
     );
   }
 
+  // ── Connecting ───────────────────────────────────────────────────────────
+  if (connecting) {
+    return (
+      <div className="mb-6">
+        <button
+          disabled
+          aria-busy="true"
+          aria-label="Connecting to wallet, please wait"
+          className="wc-fade inline-flex items-center gap-2 rounded-xl
+            bg-[color:var(--token-primary)] px-5 py-2.5 text-sm font-semibold
+            text-[color:var(--token-on-primary)] opacity-75 cursor-not-allowed
+            transition-opacity"
+        >
+          <Spinner className="h-4 w-4" label="Connecting" />
+          Connecting…
+        </button>
+      </div>
+    );
+  }
+
+  // ── Error ────────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="mb-6" role="alert" aria-live="assertive">
+        <div
+          className="wc-fade flex items-center gap-2 rounded-xl
+            border border-[color:var(--token-danger)] bg-[color:var(--token-danger-subtle)]
+            px-4 py-3 text-sm mb-2"
+        >
+          {/* Red status dot */}
+          <span
+            className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[color:var(--token-danger)]"
+            aria-hidden="true"
+          />
+          <span className="font-semibold text-[color:var(--token-danger)]">
+            Connect Failed
+          </span>
+          <span className="text-[color:var(--token-text-muted)] ml-1 truncate text-xs">
+            — {error}
+          </span>
+        </div>
+        <button
+          onClick={connect}
+          className="wc-fade inline-flex items-center gap-2 rounded-xl
+            bg-[color:var(--token-danger)] px-5 py-2.5 text-sm font-semibold
+            text-[color:var(--token-on-danger)] transition-colors
+            hover:opacity-90 focus-visible:outline-none focus-visible:ring-2
+            focus-visible:ring-[color:var(--token-danger)] focus-visible:ring-offset-1"
+          aria-label="Retry connecting wallet"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
+
+  // ── Disconnected (default) ────────────────────────────────────────────────
   return (
     <div className="mb-6">
       <button
         onClick={connect}
-        disabled={connecting}
-        className={`${colors.primary.bg} ${colors.primary.text} px-5 py-2.5 rounded-xl font-semibold ${colors.primary.hover} transition ${colors.interactive.disabled} ${colors.interactive.focus} flex items-center gap-2`}
+        className="wc-fade inline-flex items-center gap-2 rounded-xl
+          bg-[color:var(--token-primary)] px-5 py-2.5 text-sm font-semibold
+          text-[color:var(--token-on-primary)] transition-colors
+          hover:bg-[color:var(--token-primary-hover)]
+          focus-visible:outline-none focus-visible:ring-2
+          focus-visible:ring-[color:var(--token-accent)] focus-visible:ring-offset-1
+          disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Connect Freighter wallet"
       >
-        {connecting ? (
-          <>
-            <Spinner />
-            Connecting…
-          </>
-        ) : (
-          "Connect Freighter Wallet"
-        )}
+        Connect Wallet
       </button>
-      {error && <p className={`${colors.status.error.text} text-sm mt-2`}>{error}</p>}
     </div>
   );
 }

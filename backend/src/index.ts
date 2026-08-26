@@ -23,13 +23,14 @@ import {
   insertLoan,
   getLoan,
   listLoans,
+  listActiveLoans,
   updateLoan,
   softDeleteLoan,
   restoreLoan,
   listDeletedLoans,
+  insertTransaction,
   listTransactions,
   getTransaction,
-  updateCollateral,
   insertAuditEntry,
   listAuditEntries,
   getProfile,
@@ -388,7 +389,7 @@ async function buildContractTx(
     .build();
 
   try {
-    const prepared = await rpcClient.prepareTransaction(tx);
+    const prepared = await rpcClient.prepareTransaction(tx) as any;
     return prepared.toXDR();
   } catch (err) {
     throw mapSorobanError(err);
@@ -1412,25 +1413,27 @@ app.patch(
 
     const updates = validation.data;
 
+    const id = req.params.id as string;
+
     if (updates.appraised_value !== undefined && updates.appraised_value <= 0) {
       return res.status(400).json({ error: 'appraised_value must be positive' });
     }
 
-    const record = getCollateral(req.params.id);
+    const record = getCollateral(id);
     if (!record) return res.status(404).json({ error: 'Record not found' });
 
     // 409: pledged to active loan and appraised_value is being reduced
     if (
       updates.appraised_value !== undefined &&
       updates.appraised_value < record.appraised_value &&
-      isCollateralPledged(req.params.id)
+      isCollateralPledged(id)
     ) {
       return res.status(409).json({
         error: 'Cannot reduce appraised_value: collateral is pledged to an active loan',
       });
     }
 
-    const updated = updateCollateral(req.params.id, updates);
+    const updated = updateCollateral(id, updates);
     if (!updated) return res.status(404).json({ error: 'Record not found' });
 
     // Audit log entry
@@ -1439,7 +1442,7 @@ app.patch(
       userId: user?.publicKey ?? 'anonymous',
       action: 'collateral.patch',
       resource: 'collateral',
-      resourceId: req.params.id,
+      resourceId: id,
       requestBody: redact(updates),
       ip: req.ip,
     });

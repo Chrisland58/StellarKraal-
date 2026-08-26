@@ -253,6 +253,63 @@ body {
   outline-color: var(--token-accent);
 }
 
+/* ── WalletConnect state-transition fade (#808) ──────────────────────────────
+   150 ms fade used whenever WalletConnect switches between states.
+   Respects prefers-reduced-motion: the animation collapses to instant when
+   the user has requested reduced motion.
+*/
+@keyframes wc-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.wc-fade {
+  animation: wc-fade-in 150ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-fade {
+    animation: none;
+  }
+}
+
+/* ── Button ripple effect (#809) ─────────────────────────────────────────────
+   Applied via the `.btn-ripple` utility class on Button components.
+   The ripple element is injected by JS (useRipple hook) and animated here.
+   Duration: 400 ms. Colour: white 30% opacity.
+   Disabled for prefers-reduced-motion users.
+*/
+@keyframes ripple-expand {
+  from {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple .ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  animation: ripple-expand 400ms ease-out forwards;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ripple .ripple-wave {
+    display: none;
+  }
+}
+
 /* ── Toast animations ── */
 @keyframes toast-slide-in {
   from {
@@ -344,6 +401,154 @@ body {
   *:focus-visible {
     outline: 3px solid CanvasText;
     outline-offset: 2px;
+  }
+}
+
+/* ── Print stylesheet (#811) ─────────────────────────────────────────────────
+   Applied when the user prints or uses print-preview in Chrome / Firefox.
+   Goals:
+   - Hide navigation, sidebars, action buttons, toasts, and interactive UI.
+   - Show loan summary, collateral details, amounts, and dates cleanly.
+   - Inject a brand header (StellarKraal) and a print date footer on every page.
+   - Does NOT affect screen display.
+*/
+@media print {
+  /* ── Force white background / black text for readability ── */
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* ── Hide non-printable chrome ── */
+  nav,
+  aside,
+  header,
+  footer,
+  [data-print="hide"],
+  .no-print,
+  /* Navbar and utility nav */
+  #main-content > nav,
+  [aria-label="Main navigation"],
+  /* Mobile bottom nav */
+  .mobile-bottom-nav,
+  /* Toasts / notifications */
+  [role="status"][aria-live],
+  [role="alert"][aria-live="polite"],
+  .toast-container,
+  /* Action / CTA buttons */
+  button:not([data-print="show"]),
+  /* Sidebar */
+  [role="complementary"],
+  /* Skip-to-content link */
+  a[href="#main-content"],
+  /* Offline / network banners */
+  .offline-banner,
+  /* Theme toggle */
+  .theme-toggle,
+  /* Search / filter bar */
+  .search-filter-bar,
+  /* Pagination controls */
+  .pagination,
+  /* Wallet connect widget outside the loan summary */
+  .wallet-connect-widget {
+    display: none !important;
+  }
+
+  /* ── Page setup ── */
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+
+  /* ── Brand header — printed at the top of every page ── */
+  body::before {
+    content: "StellarKraal — Livestock Micro-Lending";
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Print date footer — printed at the bottom of every page ── */
+  body::after {
+    content: "Printed: " attr(data-print-date);
+    display: block;
+    font-size: 0.75rem;
+    color: #666 !important;
+    border-top: 1px solid #ccc;
+    padding-top: 0.5rem;
+    margin-top: 1rem;
+    text-align: right;
+  }
+
+  /* ── Loan / collateral summary content ── */
+  /* Ensure content fills the page width */
+  main,
+  #main-content,
+  [data-print="content"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Keep loan cards readable */
+  .loan-summary-card,
+  .collateral-detail-card,
+  [data-print="show"] {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    border-radius: 0 !important;
+    margin-bottom: 1rem;
+    padding: 0.75rem !important;
+    page-break-inside: avoid;
+  }
+
+  /* Tables inside loan summaries */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 0.375rem 0.5rem;
+    text-align: left;
+    font-size: 0.875rem;
+  }
+
+  /* Links — show URL inline for printed copies */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75rem;
+    color: #444 !important;
+  }
+
+  /* Don't append URL for internal / anchor links */
+  a[href^="#"]::after,
+  a[href^="/"]::after {
+    content: "";
+  }
+
+  /* Avoid page breaks inside key sections */
+  h1, h2, h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  img {
+    max-width: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* ── Ensure charts and dynamic visuals don't break the layout ── */
+  canvas, svg {
+    max-width: 100% !important;
   }
 }
 

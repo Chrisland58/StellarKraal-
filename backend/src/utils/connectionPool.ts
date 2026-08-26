@@ -1,4 +1,4 @@
-import { SorobanRpc } from "@stellar/stellar-sdk";
+import { rpc as SorobanRpc } from "@stellar/stellar-sdk";
 import { config } from "../config";
 import { dbPoolAcquiredTotal, dbPoolAvailable, dbPoolWaitMs } from "../metrics";
 
@@ -110,5 +110,5 @@ class ConnectionPool {
   }
 }
 
-export const pool = new ConnectionPool(config.POOL_MIN, config.POOL_MAX);
+export const pool = new ConnectionPool(parseInt(config.POOL_MIN, 10), parseInt(config.POOL_MAX, 10));
 export { PoolExhaustedError };
