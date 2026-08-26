@@ -3,18 +3,25 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Beef,
+  User,
+} from 'lucide-react';
+import { Icon } from '@/components/Icon';
 
 interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: typeof LayoutDashboard;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: '⊞' },
-  { label: 'Borrow', href: '/loans', icon: '📋' },
-  { label: 'Collateral', href: '/collateral', icon: '🐄' },
-  { label: 'Profile', href: '/profile', icon: '👤' },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Borrow', href: '/loans', icon: ClipboardList },
+  { label: 'Collateral', href: '/collateral', icon: Beef },
+  { label: 'Profile', href: '/profile', icon: User },
 ];
 
 export default function MobileBottomNav() {
@@ -42,9 +49,8 @@ export default function MobileBottomNav() {
               }`}
               aria-current={isActive ? 'page' : undefined}
             >
-              <span className="text-xl" aria-hidden="true">
-                {item.icon}
-              </span>
+              {/* Lucide icon — decorative, label is the visible text below */}
+              <Icon icon={item.icon} size="md" className="text-current" />
               <span className={`text-xs font-medium ${isActive ? 'block' : 'hidden'}`}>
                 {item.label}
               </span>

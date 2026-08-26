@@ -100,7 +100,28 @@ infrastructure/terraform.zip
 # ── TypeScript incremental build info ────────────────────────────────────────
 *.tsbuildinfo
 **/*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# ── Kiro AI agent workspace ────────────────────────────────────────────────────
+.kiro/
+
+# ── Claude AI agent settings ──────────────────────────────────────────────────
+.claude/
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 *.pem
 .cache/
+
+# ── Generated / ephemeral docs not part of source ────────────────────────────
+cargo_out.txt
+tatus
+stellarkreal
+PUSH_SUCCESS.md
+PR_DESCRIPTIONS.md
+IMPLEMENTATION_SUMMARY*.md
+FEATURES_COMPLETED.md
+TRANSACTION_HISTORY_FEATURE.md
+TRANSACTION_INTEGRATION_GUIDE.md
+DARK_MODE_AUDIT.md
+ACCESSIBILITY_IMPLEMENTATION.md
+STAGING.md

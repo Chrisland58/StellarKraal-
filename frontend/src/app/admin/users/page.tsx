@@ -6,6 +6,29 @@ import { setCurrentPage } from '@/store/adminSlice';
 import { AppDispatch } from '@/store/store';
 import AdminLayout from '@/components/AdminLayout';
 import Card from '@/components/Card';
+import {
+  AdminTable,
+  AdminTableRow,
+  AdminTableCell,
+} from '@/components/AdminTable';
+
+/**
+ * Admin users page — #802
+ * Table uses zebra striping + hover highlight via AdminTable / AdminTableRow.
+ */
+
+const USER_COLUMNS = ['Address', 'Loans', 'Collateral', 'Status'];
+
+// Demo data shape — replace with real API data when available
+interface UserRow {
+  id: string;
+  address: string;
+  loans: number;
+  collateral: number;
+  status: string;
+}
+
+const DEMO_USERS: UserRow[] = [];
 
 export default function UsersPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -28,33 +51,27 @@ export default function UsersPage() {
           <h2 className="text-xl font-semibold text-brown dark:text-cream">User Management</h2>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-brown/5 dark:bg-cream/5">
-              <tr>
-                <th className="px-4 py-3 text-left text-brown dark:text-cream font-semibold">
-                  Address
-                </th>
-                <th className="px-4 py-3 text-left text-brown dark:text-cream font-semibold">
-                  Loans
-                </th>
-                <th className="px-4 py-3 text-left text-brown dark:text-cream font-semibold">
-                  Collateral
-                </th>
-                <th className="px-4 py-3 text-left text-brown dark:text-cream font-semibold">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brown/10 dark:divide-cream/10">
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-brown/60 dark:text-cream/60">
-                  No users found
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <AdminTable columns={USER_COLUMNS} caption="User management table">
+          {DEMO_USERS.length === 0 ? (
+            <tr>
+              <td
+                colSpan={USER_COLUMNS.length}
+                className="px-4 py-8 text-center text-sm text-brown/60 dark:text-cream/60"
+              >
+                No users found
+              </td>
+            </tr>
+          ) : (
+            DEMO_USERS.map((user, index) => (
+              <AdminTableRow key={user.id} index={index}>
+                <AdminTableCell className="font-mono text-xs">{user.address}</AdminTableCell>
+                <AdminTableCell>{user.loans}</AdminTableCell>
+                <AdminTableCell>{user.collateral}</AdminTableCell>
+                <AdminTableCell>{user.status}</AdminTableCell>
+              </AdminTableRow>
+            ))
+          )}
+        </AdminTable>
       </Card>
     </AdminLayout>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { CheckCircle2, XCircle, AlertTriangle, Info } from "lucide-react";
+import { Icon } from "@/components/Icon";
 import { ToastItem, ToastVariant } from "./ToastContext";
 
 const AUTO_DISMISS_MS = 4000;
@@ -12,11 +14,11 @@ const variantStyles: Record<ToastVariant, string> = {
   info: "bg-blue-700 text-white",
 };
 
-const variantIcons: Record<ToastVariant, string> = {
-  success: "✅",
-  error: "❌",
-  warning: "⚠️",
-  info: "ℹ️",
+const variantIcons: Record<ToastVariant, typeof CheckCircle2> = {
+  success: CheckCircle2,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Info,
 };
 
 interface ToastProps {
@@ -106,9 +108,11 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
         exiting && !isDragging ? "toast-exit" : "toast-enter"
       } ${variantStyles[toast.variant]}`}
     >
-      <span className="text-lg leading-none mt-0.5" aria-hidden="true">
-        {variantIcons[toast.variant]}
-      </span>
+      <Icon
+        icon={variantIcons[toast.variant]}
+        size="md"
+        className="mt-0.5 flex-shrink-0 text-white"
+      />
       <p className="text-sm font-medium flex-1">{toast.message}</p>
       <button
         onClick={handleDismiss}
