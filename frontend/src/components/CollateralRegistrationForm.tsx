@@ -79,6 +79,11 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -105,6 +110,13 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
     }, AUTO_SAVE_INTERVAL);
     return () => clearInterval(interval);
   }, [formData, walletAddress]);
+
+  // Revoke object URL on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   const restoreSavedData = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -212,6 +224,8 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
     return Object.keys(newErrors).length === 0;
   };
 
+  const hasErrors = Object.values(errors).some(Boolean);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitAttempted(true);
@@ -222,6 +236,16 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
   const registerCollateral = async () => {
     setLoading(true);
     try {
+      // Build multipart/form-data so the image travels alongside the other fields
+      const body = new FormData();
+      body.append('owner', walletAddress);
+      body.append('animal_type', formData.animalType);
+      body.append('count', formData.quantity);
+      body.append('appraised_value', formData.appraisedValue);
+      if (imageFile) {
+        body.append('image', imageFile, imageFile.name);
+      }
+
       const res = await fetch(`${API}/api/v1/collateral/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
