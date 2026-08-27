@@ -607,3 +607,9 @@ body {
     gap: var(--density-row-gap);
   }
 }
+
+/* ── Dot-grid pattern for hero sections ── */
+.dot-grid {
+  background-image: radial-gradient(var(--token-border) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

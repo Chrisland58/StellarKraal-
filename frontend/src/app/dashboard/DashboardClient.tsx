@@ -15,6 +15,7 @@ import OnboardingModal from "@/components/OnboardingModal";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { useHealthFactor } from "@/hooks/useHealthFactor";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { Hero } from "@/components/Hero";
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -97,13 +98,17 @@ export default function DashboardClient() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-brown">Dashboard</h1>
-        <HelpMenu onShowOnboarding={openOnboarding} />
+    <main className="mx-auto max-w-6xl">
+      <Hero className="py-10 mb-6">
+        <div className="flex items-center justify-between px-4">
+          <h1 className="text-3xl font-bold text-brown">Dashboard</h1>
+          <HelpMenu onShowOnboarding={openOnboarding} />
+        </div>
+      </Hero>
+      <div className="px-4">
+        <OnboardingModal isOpen={showOnboarding} onClose={closeOnboarding} />
+        <WalletConnect onConnect={setWallet} />
       </div>
-      <OnboardingModal isOpen={showOnboarding} onClose={closeOnboarding} />
-      <WalletConnect onConnect={setWallet} />
       {wallet && (
         <>
           <OnboardingChecklist
