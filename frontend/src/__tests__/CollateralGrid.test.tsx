@@ -1,7 +1,7 @@
 /**
  * Component tests for CollateralGrid.
  * Covers loading, populated, empty, card click, and health indicator states.
- * Closes #362, #779
+ * Closes #362, #779, #819
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
