@@ -122,7 +122,28 @@ export default function LoansListClient() {
     <PageTransition>
       <main className="max-w-3xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold text-brown mb-6">Loans</h1>
-        <Suspense fallback={<p className="text-brown/60 text-sm">Loading…</p>}>
+        <Suspense
+          fallback={
+            <ul className="space-y-3 mt-4" aria-busy="true" aria-label="Loading loans">
+              {[...Array(5)].map((_, i) => (
+                <li
+                  key={i}
+                  className="bg-white dark:bg-brown-900 rounded-xl p-4 shadow-sm border border-brown/10 flex justify-between items-center"
+                  aria-hidden="true"
+                >
+                  <div className="space-y-2">
+                    <div className="skeleton-shimmer rounded h-4 w-24" />
+                    <div className="skeleton-shimmer rounded h-3 w-44" />
+                  </div>
+                  <div className="text-right space-y-2">
+                    <div className="skeleton-shimmer rounded h-4 w-20" />
+                    <div className="skeleton-shimmer rounded h-5 w-16 rounded-full" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          }
+        >
           <LoanListContent />
         </Suspense>
       </main>

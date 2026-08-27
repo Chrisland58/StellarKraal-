@@ -27,6 +27,7 @@ export default function SettingsPage() {
         <CurrencySettings />
         <DensityToggle />
         <NotificationPreferences />
+        <ToastPositionSelector />
       </div>
     </main>
   );

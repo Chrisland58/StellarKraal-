@@ -106,6 +106,7 @@ export default function RootLayout({
             {children}
             </main>
             <ToastContainer />
+            <WhatsNewProvider />
             </ToastProvider>
           </KeyboardShortcutsProvider>
         </ThemeProvider>

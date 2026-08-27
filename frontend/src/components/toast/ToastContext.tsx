@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useState } from "react";
+import { useToastPosition, type ToastPosition } from "@/hooks/useToastPosition";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
 
@@ -14,6 +15,10 @@ interface ToastContextValue {
   toasts: ToastItem[];
   addToast: (message: string, variant: ToastVariant) => void;
   removeToast: (id: string) => void;
+  /** Current user-preferred toast position */
+  toastPosition: ToastPosition;
+  /** Persist a new toast position preference */
+  setToastPosition: (pos: ToastPosition) => void;
 }
 
 export const ToastContext = createContext<ToastContextValue | undefined>(
@@ -26,6 +31,7 @@ function generateId(): string {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const { position: toastPosition, setPosition: setToastPosition } = useToastPosition();
 
   const addToast = useCallback((message: string, variant: ToastVariant) => {
     const id = generateId();
@@ -37,9 +43,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+    <ToastContext.Provider value={{ toasts, addToast, removeToast, toastPosition, setToastPosition }}>
       {children}
     </ToastContext.Provider>
   );
 }
-
