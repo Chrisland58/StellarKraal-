@@ -8,10 +8,21 @@
 import request from "supertest";
 import app from "./index";
 
-const VALID_ADDRESS = "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN";
+const VALID_ADDRESS = "GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6";
 const INVALID_ADDRESS = "INVALID_KEY";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
+
+jest.mock("./middleware/auth", () => {
+  const Router = require("express").Router;
+  return {
+    jwtMiddleware: (req: any, res: any, next: any) => {
+      req.user = { publicKey: "GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6" };
+      next();
+    },
+    authRouter: Router(),
+  };
+});
 
 jest.mock("./utils/logger", () => ({
   __esModule: true,
@@ -52,7 +63,7 @@ jest.mock("@stellar/stellar-sdk", () => {
     nativeToScVal: jest.fn().mockReturnValue({}),
     SorobanRpc: {
       Server: jest.fn().mockImplementation(() => ({
-        getAccount: jest.fn().mockResolvedValue({ id: VALID_ADDRESS, sequence: "1" }),
+        getAccount: jest.fn().mockResolvedValue({ id: "GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6", sequence: "1" }),
         prepareTransaction: jest.fn().mockResolvedValue({ toXDR: () => "prepared_xdr" }),
         simulateTransaction: jest.fn().mockResolvedValue({
           result: { retval: { value: 150 } },
@@ -215,6 +226,7 @@ describe("Loan Lifecycle Integration Tests", () => {
     it("happy path: partial repayment returns XDR", async () => {
       const res = await request(app)
         .post("/api/loan/repay")
+        .set("Idempotency-Key", "partial-repay-key")
         .send(repayPayload());
 
       expect(res.status).toBe(200);
@@ -224,6 +236,7 @@ describe("Loan Lifecycle Integration Tests", () => {
     it("happy path: full repayment returns XDR", async () => {
       const res = await request(app)
         .post("/api/loan/repay")
+        .set("Idempotency-Key", "full-repay-key")
         .send(repayPayload({ amount: 600_000 }));
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty("xdr");
@@ -232,6 +245,7 @@ describe("Loan Lifecycle Integration Tests", () => {
     it("error: missing loan_id returns 400", async () => {
       const res = await request(app)
         .post("/api/loan/repay")
+        .set("Idempotency-Key", "missing-loan-id-key")
         .send({ borrower: VALID_ADDRESS, amount: 200_000 });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe("Validation failed");
@@ -240,6 +254,7 @@ describe("Loan Lifecycle Integration Tests", () => {
     it("error: invalid Stellar public key returns 400", async () => {
       const res = await request(app)
         .post("/api/loan/repay")
+        .set("Idempotency-Key", "invalid-key-key")
         .send(repayPayload({ borrower: "NOT_VALID" }));
       expect(res.status).toBe(400);
     });
@@ -247,6 +262,7 @@ describe("Loan Lifecycle Integration Tests", () => {
     it("error: zero amount returns 400", async () => {
       const res = await request(app)
         .post("/api/loan/repay")
+        .set("Idempotency-Key", "zero-amount-key")
         .send(repayPayload({ amount: 0 }));
       expect(res.status).toBe(400);
     });
@@ -313,6 +329,7 @@ describe("Loan Lifecycle Integration Tests", () => {
       // 3. Repay loan (partial)
       const repayRes = await request(app)
         .post("/api/loan/repay")
+        .set("Idempotency-Key", "lifecycle-repay-key")
         .send(repayPayload());
       expect(repayRes.status).toBe(200);
       expect(repayRes.body.xdr).toBeDefined();

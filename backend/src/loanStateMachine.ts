@@ -1,4 +1,4 @@
-export type LoanStatus = "pending" | "active" | "repaid" | "liquidated";
+export type LoanStatus = "pending" | "active" | "repaid" | "liquidated" | "at_risk";
 
 export interface TransitionRecord {
   from: LoanStatus;
@@ -16,7 +16,8 @@ export class InvalidTransitionError extends Error {
 // Valid transitions: from → allowed next states
 const TRANSITIONS: Record<LoanStatus, LoanStatus[]> = {
   pending: ["active"],
-  active: ["repaid", "liquidated"],
+  active: ["repaid", "liquidated", "at_risk"],
+  at_risk: ["repaid", "liquidated", "active"],
   repaid: [],
   liquidated: [],
 };
@@ -25,6 +26,14 @@ const TRANSITIONS: Record<LoanStatus, LoanStatus[]> = {
  * Validate and apply a loan status transition.
  * Throws InvalidTransitionError for disallowed transitions.
  * Returns the new status and appends to the history array.
+ * @param current - The current loan status.
+ * @param next - The desired next loan status.
+ * @param history - Mutable array to append the transition record to.
+ * @returns The new {@link LoanStatus} after the transition.
+ * @throws {@link InvalidTransitionError} if the transition from `current` to `next` is not allowed.
+ * @example
+ * const history: TransitionRecord[] = [];
+ * const newStatus = transition("pending", "active", history);
  */
 export function transition(
   current: LoanStatus,
@@ -40,6 +49,10 @@ export function transition(
 
 /**
  * Returns the valid next states from a given status.
+ * @param status - The current loan status.
+ * @returns Array of {@link LoanStatus} values that are valid next states.
+ * @example
+ * allowedTransitions("active"); // ["repaid", "liquidated"]
  */
 export function allowedTransitions(status: LoanStatus): LoanStatus[] {
   return TRANSITIONS[status];
