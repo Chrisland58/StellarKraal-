@@ -110,6 +110,14 @@ npm run test:frontend
 
 ---
 
+## Architecture Decision Records (ADRs)
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [ADR-009](docs/adr/ADR-009-api-v2-design.md) | API v2: REST vs GraphQL vs tRPC | Accepted |
+
+---
+
 ## License
 
 MIT © StellarKraal
