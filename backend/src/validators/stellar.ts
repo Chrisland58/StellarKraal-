@@ -30,7 +30,9 @@ export const stellarPublicKeySchema = z
 export type StellarPublicKey = z.infer<typeof stellarPublicKeySchema>;
 
 /**
- * Validates a Stellar public key and returns the result
+ * Validates a Stellar public key and returns the result.
+ * @param key - The string to validate as a Stellar public key.
+ * @returns An object with `success`, and optionally `data` or `error`.
  */
 export function validateStellarPublicKey(key: string): {
   success: boolean;
@@ -43,6 +45,6 @@ export function validateStellarPublicKey(key: string): {
   }
   return {
     success: false,
-    error: result.error.errors[0]?.message || "Invalid Stellar public key format",
+    error: result.error.issues[0]?.message || "Invalid Stellar public key format",
   };
 }

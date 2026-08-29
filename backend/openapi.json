@@ -1,0 +1,3019 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "StellarKraal API",
+    "version": "1.0.0",
+    "description": "Livestock-backed micro-lending API on Stellar/Soroban. Write endpoints return an unsigned XDR transaction the client must sign with Freighter and submit to the Stellar network.\n\n**Rate limits:** Per-IP limits apply (global, auth, and write tiers). See the [rate limits guide](../docs/guides/rate-limits.md) for limits, headers, and retry behavior. See also the [API quickstart](../docs/guides/api-quickstart.md)."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Versioned API"
+    },
+    {
+      "url": "/api",
+      "description": "Unversioned (deprecated, redirects to /api/v1)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Authentication — challenge/response JWT flow"
+    },
+    {
+      "name": "health",
+      "description": "Service health"
+    },
+    {
+      "name": "collateral",
+      "description": "Livestock collateral management"
+    },
+    {
+      "name": "loan",
+      "description": "Loan lifecycle"
+    },
+    {
+      "name": "oracle",
+      "description": "Price oracle integration"
+    },
+    {
+      "name": "webhooks",
+      "description": "Event webhook subscriptions"
+    },
+    {
+      "name": "admin",
+      "description": "Admin endpoints"
+    },
+    {
+      "name": "transactions",
+      "description": "Transaction history"
+    },
+    {
+      "name": "settings",
+      "description": "User preferences"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/challenge": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get a one-time challenge",
+        "description": "Returns a random hex challenge string. The client must sign it with their Stellar keypair and submit it to POST /auth/login.",
+        "operationId": "getChallenge",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Challenge issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Object containing the hex challenge string.",
+                  "properties": {
+                    "challenge": {
+                      "type": "string",
+                      "description": "Random hex challenge string",
+                      "example": "a3f9..."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login with Stellar signature",
+        "description": "Verifies the ed25519 signature over the challenge. Returns a short-lived JWT access token (15 min) and a refresh token.",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "Stellar public key, hex-encoded ed25519 signature, and the challenge string obtained from GET /auth/challenge.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Login request payload.",
+                "required": [
+                  "walletAddress",
+                  "signedChallenge"
+                ],
+                "properties": {
+                  "walletAddress": {
+                    "type": "string",
+                    "description": "Stellar G... public key",
+                    "example": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+                  },
+                  "signedChallenge": {
+                    "type": "object",
+                    "description": "Signed challenge nonce and ed25519 signature",
+                    "required": [
+                      "nonce",
+                      "signature"
+                    ],
+                    "properties": {
+                      "nonce": {
+                        "type": "string",
+                        "description": "Nonce string obtained from challenge",
+                        "example": "a3f9..."
+                      },
+                      "signature": {
+                        "type": "string",
+                        "description": "Hex-encoded ed25519 signature",
+                        "example": "b4c8..."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JWT issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Access token and expiry payload.",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT access token",
+                      "example": "eyJhbGci..."
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "description": "Access token validity period in seconds",
+                      "example": 900
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Rotate refresh token",
+        "description": "Reads the refresh token from the refreshToken httpOnly cookie, validates it, and issues a new access token and rotated cookie.",
+        "operationId": "refreshToken",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Token rotated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "New access token payload.",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT access token",
+                      "example": "eyJhbGci..."
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "description": "Access token validity in seconds",
+                      "example": 900
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Service health check",
+        "description": "Returns the current health status of the API service, including version, uptime, Soroban RPC reachability, and connection pool statistics. Returns 200 when healthy or 503 when degraded.",
+        "operationId": "getHealth",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Degraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Kubernetes liveness probe",
+        "description": "Confirms the process is running and can accept requests. No dependency checks; Kubernetes restarts the pod only when this fails.",
+        "operationId": "getHealthLive",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "alive",
+                      "description": "Always \"alive\" when the endpoint responds."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Kubernetes readiness probe",
+        "description": "Confirms external dependencies (database, Soroban RPC) are reachable. Kubernetes stops routing traffic when this returns 503.",
+        "operationId": "getHealthReady",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "All dependencies reachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "not_ready"
+                      ],
+                      "description": "Aggregate readiness status."
+                    },
+                    "db": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Database connectivity status."
+                    },
+                    "rpc": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Soroban RPC connectivity status."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "One or more dependencies unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "not_ready"
+                      ],
+                      "description": "Aggregate readiness status."
+                    },
+                    "db": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Database connectivity status."
+                    },
+                    "rpc": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Soroban RPC connectivity status."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/deep": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Deep infrastructure health check",
+        "description": "Returns the health status of each infrastructure component: database, Soroban RPC, and disk space. Returns 200 when all components are healthy or 503 when one or more are degraded. Disk is considered degraded when free space falls below 500 MB.",
+        "operationId": "getHealthDeep",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "All components healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "db": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Database connectivity status."
+                    },
+                    "rpc": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Soroban RPC connectivity status."
+                    },
+                    "disk": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Disk space status (degraded below 500 MB free)."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "One or more components degraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "db": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Database connectivity status."
+                    },
+                    "rpc": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Soroban RPC connectivity status."
+                    },
+                    "disk": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ],
+                      "description": "Disk space status (degraded below 500 MB free)."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collateral/register": {
+      "post": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Register livestock collateral (on-chain)",
+        "description": "Builds an unsigned Soroban transaction to register livestock as on-chain collateral. The client must sign the returned XDR with Freighter and submit it to the Stellar network.",
+        "operationId": "registerCollateral",
+        "requestBody": {
+          "required": true,
+          "description": "Livestock collateral details including owner wallet, animal type, count, and appraised value.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCollateralRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned XDR transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XdrResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/collateral/register/batch": {
+      "post": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Batch register livestock collateral (on-chain)",
+        "description": "Builds unsigned Soroban transactions for up to 50 livestock collateral registrations in a single request. Returns an array of unsigned XDR transactions in the same order as the input items.",
+        "operationId": "batchRegisterCollateral",
+        "requestBody": {
+          "required": true,
+          "description": "An array of 1–50 collateral registration items to process in batch.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRegisterCollateralRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Array of unsigned XDR transactions, one per item in input order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchRegisterCollateralResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/collateral": {
+      "post": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Create collateral record (DB)",
+        "description": "Creates a new livestock collateral record in the database. This does not submit an on-chain transaction; use POST /collateral/register for on-chain registration.",
+        "operationId": "createCollateral",
+        "requestBody": {
+          "required": true,
+          "description": "Collateral record details including animal type, count, and appraised value.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V1CreateCollateralRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollateralRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "List collateral records",
+        "description": "Returns a paginated list of collateral records. Supports filtering by owner wallet address and animal type. Results are ordered by creation date descending.",
+        "operationId": "listCollateral",
+        "security": [],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "description": "Filter by Stellar public key of the collateral owner.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "animal_type",
+            "in": "query",
+            "description": "Filter by animal type (e.g. \"cattle\", \"goat\", \"sheep\").",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination (1-indexed).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of records per page (1–100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollateralPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collateral/{id}": {
+      "get": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Get collateral by ID",
+        "description": "Returns a single collateral record by its unique identifier. Returns 404 if the record does not exist.",
+        "operationId": "getCollateral",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique collateral record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collateral record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollateralRecord"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Partially update collateral fields",
+        "description": "Updates one or more fields on an existing collateral record. At least one of animal_type, count, or appraised_value must be provided. Returns the updated record.",
+        "operationId": "updateCollateral",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique collateral record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Fields to update. At least one field must be provided.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V1UpdateCollateralRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollateralRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Soft-delete a collateral record",
+        "description": "Marks a collateral record as deleted without removing it from the database. The record can be restored via PATCH /collateral/{id}/restore. Returns the deletion confirmation.",
+        "operationId": "deleteCollateral",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique collateral record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/collateral/{id}/appraise": {
+      "put": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Update appraised value",
+        "description": "Sets the appraised value for a collateral record. The new value must be a positive integer representing token base units. Returns the updated record.",
+        "operationId": "appraiseCollateral",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique collateral record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "New appraised value for the collateral.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "appraised_value"
+                ],
+                "description": "Appraisal update request.",
+                "properties": {
+                  "appraised_value": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "New appraised value in token base units."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollateralRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/collateral/{id}/restore": {
+      "patch": {
+        "tags": [
+          "collateral"
+        ],
+        "summary": "Restore soft-deleted collateral",
+        "description": "Restores a previously soft-deleted collateral record, removing its deleted_at timestamp. Returns 409 if the collateral is currently pledged to an active loan.",
+        "operationId": "restoreCollateralV1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique collateral record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoredResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Collateral is pledged to an active loan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loan/request": {
+      "post": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Request a new loan",
+        "description": "Builds an unsigned Soroban transaction to request a new loan against registered collateral. Consider supplying an `Idempotency-Key` header on retries to avoid accidentally submitting duplicate loan requests.",
+        "operationId": "requestLoan",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional client-generated UUID v4 key. If supplied, the server stores the response for 24 hours and returns the original on replay with `X-Idempotent-Replayed: true`."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Loan request payload including borrower public key, collateral ID, and requested amount.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned XDR transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XdrResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/loan/repay": {
+      "post": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Repay a loan",
+        "description": "Builds an unsigned Soroban transaction to repay part or all of an existing loan. Requires an Idempotency-Key header to prevent duplicate submissions. The client must sign the returned XDR and submit it to the Stellar network.",
+        "operationId": "repayLoan",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Client-generated unique key for idempotent replay"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Repayment details including borrower wallet, loan ID, and repayment amount.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanRepayBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned XDR transaction",
+            "headers": {
+              "X-Idempotent-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                "description": "Present with value `true` when the response was served from the idempotency cache"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XdrResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/loan/liquidate": {
+      "post": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Liquidate an undercollateralised loan",
+        "description": "Builds an unsigned Soroban transaction to liquidate a loan whose health factor has fallen below the liquidation threshold. The liquidator repays part of the loan and receives the pledged collateral. Returns 400 with the current health factor if the loan is not yet liquidatable.",
+        "operationId": "liquidateLoan",
+        "requestBody": {
+          "required": true,
+          "description": "Liquidation details including liquidator wallet, loan ID, and repayment amount.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanLiquidateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned XDR transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XdrResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/loan/repayment-preview": {
+      "post": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Preview repayment breakdown",
+        "description": "Simulates a repayment and returns principal/interest/fee breakdown and projected health factor. Does not submit a transaction.",
+        "operationId": "repaymentPreview",
+        "requestBody": {
+          "required": true,
+          "description": "Loan ID and proposed repayment amount for simulation.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepaymentPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preview result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepaymentPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/loan/{id}": {
+      "get": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Fetch a loan record",
+        "description": "Returns the on-chain Soroban ScVal representation of a loan by its numeric ID. Use GET /loans for paginated listing.",
+        "operationId": "getLoan",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric loan identifier.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Loan record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScValResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Soft-delete a loan record",
+        "description": "Marks a loan record as deleted without removing it from the database. The record can be restored via POST /admin/restore/loans/{id}.",
+        "operationId": "deleteLoan",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric loan identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/loans": {
+      "get": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "List loans (paginated)",
+        "description": "Returns a paginated list of loan records. Supports page and pageSize query parameters. Unpaginated requests (without page/pageSize) are deprecated and return Deprecation/Sunset headers.",
+        "operationId": "listLoans",
+        "security": [],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination (1-indexed).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of records per page (1–100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated loan list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/loans/summary": {
+      "get": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Get borrower loan portfolio summary",
+        "description": "Returns active loan metrics scoped to the authenticated borrower, including total active loans, collateral value, average health factor, and at-risk count. Responses are cached for 30 seconds.",
+        "operationId": "getLoanSummary",
+        "responses": {
+          "200": {
+            "description": "Borrower summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/health/{loanId}": {
+      "get": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Get loan health factor",
+        "description": "Returns the health factor scaled by 10 000. Values ≥ 10 000 are healthy; < 10 000 are eligible for liquidation.",
+        "operationId": "getLoanHealth",
+        "security": [],
+        "parameters": [
+          {
+            "name": "loanId",
+            "in": "path",
+            "required": true,
+            "description": "Numeric loan identifier.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Health factor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthFactorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/oracle/price-update": {
+      "post": {
+        "tags": [
+          "oracle"
+        ],
+        "summary": "Invalidate appraisal cache",
+        "description": "Clears the in-memory appraisal value cache so the next collateral query fetches fresh values. Typically called after an oracle price feed update.",
+        "operationId": "oraclePriceUpdate",
+        "responses": {
+          "200": {
+            "description": "Cache invalidated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invalidated": {
+                      "type": "boolean",
+                      "example": true,
+                      "description": "Always true when the cache is cleared."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/webhooks": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Register a webhook",
+        "description": "Registers a new webhook URL to receive event notifications. Optionally enables payload encryption. Returns the created webhook record with a unique ID.",
+        "operationId": "registerWebhook",
+        "requestBody": {
+          "required": true,
+          "description": "Webhook URL to register. Optionally include encrypt: true for payload encryption.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "description": "Webhook registration request.",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "HTTPS URL to receive webhook POST requests."
+                  },
+                  "encrypt": {
+                    "type": "boolean",
+                    "description": "If true, encrypts the webhook payload with a shared secret."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/webhooks/{id}": {
+      "delete": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Delete a webhook",
+        "description": "Permanently removes a registered webhook by its ID. Returns 204 with no body on success, or 404 if the webhook does not exist.",
+        "operationId": "deleteWebhook",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique webhook identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Webhook deleted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/alerts/webhook": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "AWS SNS alert receiver",
+        "description": "Receives AWS SNS notifications (SubscriptionConfirmation and Notification). Used for backup failure alerts. Automatically confirms SNS subscriptions and fires alerts on backup job failures.",
+        "operationId": "alertsWebhook",
+        "security": [],
+        "parameters": [
+          {
+            "name": "x-amz-sns-message-type",
+            "in": "header",
+            "description": "SNS message type header.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SubscriptionConfirmation",
+                "Notification"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "SNS message payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "AWS SNS message body."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/admin/webhooks": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List registered webhooks",
+        "description": "Returns all registered webhook URLs and their metadata. Requires admin privileges.",
+        "operationId": "listWebhooks",
+        "responses": {
+          "200": {
+            "description": "Webhook list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "description": "Array of registered webhook records.",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookRecord"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/webhooks/logs": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List webhook delivery logs",
+        "description": "Returns recent webhook delivery attempts including event type, HTTP status, and timestamp. Requires admin privileges.",
+        "operationId": "listWebhookLogs",
+        "responses": {
+          "200": {
+            "description": "Delivery logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "description": "Array of webhook delivery log entries.",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookLog"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/migrations/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Migration status",
+        "description": "Returns the current status of database migrations, including which migrations have been applied and which are pending. Requires admin privileges.",
+        "operationId": "getMigrationStatus",
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Migration status details.",
+                  "properties": {
+                    "status": {
+                      "type": "object",
+                      "description": "Map of migration names to their applied/pending status."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/deleted/collateral": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List soft-deleted collateral",
+        "description": "Returns all collateral records that have been soft-deleted (deleted_at is set). Useful for auditing and recovery. Requires admin privileges.",
+        "operationId": "listDeletedCollateral",
+        "responses": {
+          "200": {
+            "description": "Deleted records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "description": "Array of soft-deleted collateral records.",
+                  "items": {
+                    "$ref": "#/components/schemas/CollateralRecord"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/restore/collateral/{id}": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Restore soft-deleted collateral",
+        "description": "Admin endpoint to restore a soft-deleted collateral record by clearing its deleted_at timestamp. Requires admin privileges.",
+        "operationId": "restoreCollateral",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique collateral record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoredResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/deleted/loans": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List soft-deleted loans",
+        "description": "Returns all loan records that have been soft-deleted. Useful for auditing and recovery. Requires admin privileges.",
+        "operationId": "listDeletedLoans",
+        "responses": {
+          "200": {
+            "description": "Deleted loan records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "description": "Array of soft-deleted loan records.",
+                  "items": {
+                    "type": "object",
+                    "description": "A soft-deleted loan record."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/restore/loans/{id}": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Restore soft-deleted loan",
+        "description": "Admin endpoint to restore a soft-deleted loan record by clearing its deleted_at timestamp. Requires admin privileges.",
+        "operationId": "restoreLoan",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric loan identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoredResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/stats": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get platform-wide statistics",
+        "description": "Returns aggregated platform metrics: total users, loans, collateral, TVL, and active loan count. Admin role required. Response cached for 60 seconds.",
+        "operationId": "getAdminStats",
+        "responses": {
+          "200": {
+            "description": "Platform statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStats"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "List transactions",
+        "description": "Returns a paginated list of transaction records. Supports filtering by borrower, transaction type, status, and date range.",
+        "operationId": "listTransactions",
+        "security": [],
+        "parameters": [
+          {
+            "name": "borrower",
+            "in": "query",
+            "description": "Filter by borrower Stellar public key.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by transaction type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "loan_request",
+                "repayment",
+                "liquidation"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by transaction status.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "description": "Start of date range filter (ISO 8601).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "description": "End of date range filter (ISO 8601).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination (1-indexed).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of records per page (1–100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "Get transaction by ID",
+        "description": "Returns a single transaction record by its unique identifier, including borrower, type, status, amount, and creation timestamp.",
+        "operationId": "getTransaction",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique transaction record identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionRecord"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/transactions/{hash}/status": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "Poll transaction status on-chain",
+        "description": "Polls the Soroban RPC for the confirmation status of a submitted transaction by its 64-character hex hash. Returns pending, success, or failed. Rate-limited to 10 requests per second.",
+        "operationId": "getTransactionStatus",
+        "security": [],
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "description": "64-character hex transaction hash.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "On-chain transaction status.",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "success",
+                        "failed"
+                      ],
+                      "description": "Current confirmation status."
+                    },
+                    "ledger": {
+                      "type": "integer",
+                      "description": "Ledger number where the transaction was confirmed (present when status is success)."
+                    },
+                    "errorCode": {
+                      "type": "string",
+                      "description": "Soroban error code (present when status is failed)."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "Soroban RPC error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "RPC error",
+                  "message": "Failed to query transaction status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/{wallet}": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get user settings",
+        "description": "Returns the notification preferences, language, and currency settings for the specified wallet address. Returns default settings if none have been configured.",
+        "operationId": "getSettings",
+        "security": [],
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "path",
+            "required": true,
+            "description": "Stellar public key of the user.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update user settings",
+        "description": "Replaces the user settings for the specified wallet address. Only provided fields are updated; unspecified fields retain their current values.",
+        "operationId": "updateSettings",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "path",
+            "required": true,
+            "description": "Stellar public key of the user.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Settings fields to update (at least one field required).",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSettingsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/loans/{id}/repay": {
+      "post": {
+        "tags": [
+          "loan"
+        ],
+        "summary": "Submit pre-signed XDR for loan repayment",
+        "description": "Accepts client pre-signed Soroban XDR directly and submits it to the Stellar RPC network.",
+        "operationId": "repayLoanOnChain",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Loan ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Object containing the base64-encoded signed XDR transaction string.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Repayment payload with signed XDR string.",
+                "required": [
+                  "signedXdr"
+                ],
+                "properties": {
+                  "signedXdr": {
+                    "type": "string",
+                    "description": "Base64-encoded signed Stellar transaction XDR",
+                    "example": "AAAAAG..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Transaction submission result containing transaction hash and status.",
+                  "properties": {
+                    "hash": {
+                      "type": "string",
+                      "description": "Stellar transaction hash",
+                      "example": "8f4a..."
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "Submission status",
+                      "example": "PENDING"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "HS256 JWT issued by POST /api/auth/login. Required on all POST, PUT, DELETE, and PATCH requests except /api/auth/* endpoints. Pass as: Authorization: Bearer <token>"
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "description": "Stellar wallet login request. The client obtains a challenge from GET /auth/challenge, signs it with their ed25519 keypair, and submits the signature here.",
+        "required": [
+          "publicKey",
+          "signature",
+          "challenge"
+        ],
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "description": "Stellar public key (G...)",
+            "example": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+          },
+          "signature": {
+            "type": "string",
+            "description": "Hex-encoded ed25519 signature over the challenge bytes"
+          },
+          "challenge": {
+            "type": "string",
+            "description": "Challenge string from GET /auth/challenge"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "description": "JWT token pair returned on successful login or token refresh.",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Short-lived JWT access token (15 min TTL). Pass in Authorization header."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Long-lived refresh token (7 days TTL). Used with POST /auth/refresh to obtain a new pair."
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Access token TTL in seconds",
+            "example": 900
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Standard error envelope returned for all error responses. The error field contains a human-readable message; code contains a machine-readable error category.",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message describing what went wrong."
+          },
+          "code": {
+            "type": "string",
+            "description": "Machine-readable error code (e.g. VALIDATION_ERROR, INTERNAL_ERROR)."
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details, typically field-level validation messages.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "Error message for a specific field."
+              }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "description": "Service health status returned by GET /health. Includes version info, uptime, RPC reachability, and connection pool statistics.",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "API version identifier.",
+            "example": "v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded"
+            ],
+            "description": "Aggregate health status."
+          },
+          "version": {
+            "type": "string",
+            "description": "Application version from package.json.",
+            "example": "1.0.0"
+          },
+          "uptime": {
+            "type": "integer",
+            "description": "Uptime in seconds"
+          },
+          "rpcReachable": {
+            "type": "boolean",
+            "description": "Whether the Soroban RPC endpoint is reachable."
+          },
+          "circuitBreaker": {
+            "type": "object",
+            "description": "Circuit breaker state for upstream connections.",
+            "properties": {
+              "healthy": {
+                "type": "boolean",
+                "description": "Whether the circuit breaker is in a healthy state."
+              },
+              "states": {
+                "type": "object",
+                "description": "Per-service circuit breaker states."
+              }
+            }
+          },
+          "pool": {
+            "type": "object",
+            "description": "Connection pool statistics (active, idle, total connections)."
+          }
+        }
+      },
+      "RegisterCollateralRequest": {
+        "type": "object",
+        "description": "Request to register livestock collateral on-chain via a Soroban transaction.",
+        "required": [
+          "owner",
+          "animal_type",
+          "count",
+          "appraised_value"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "Stellar public key (G...)",
+            "example": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+          },
+          "animal_type": {
+            "type": "string",
+            "description": "Type of livestock (e.g. cattle, goat, sheep).",
+            "example": "cattle"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of animals in this collateral group.",
+            "example": 5
+          },
+          "appraised_value": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Total appraised value in token base units",
+            "example": 5000000
+          }
+        }
+      },
+      "BatchRegisterCollateralRequest": {
+        "type": "object",
+        "description": "Batch request to register multiple livestock collateral items on-chain in a single call.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "List of collateral registrations (1–50 items)",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/RegisterCollateralRequest"
+            }
+          }
+        }
+      },
+      "BatchRegisterCollateralResponse": {
+        "type": "object",
+        "description": "Response containing an array of unsigned XDR transactions, one per input item, in the same order.",
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "description": "Unsigned XDR transactions, one per input item in order",
+            "items": {
+              "$ref": "#/components/schemas/XdrResponse"
+            }
+          }
+        }
+      },
+      "V1CreateCollateralRequest": {
+        "type": "object",
+        "description": "Request to create a collateral record in the database without an on-chain transaction.",
+        "required": [
+          "animal_type",
+          "count",
+          "appraised_value"
+        ],
+        "properties": {
+          "animal_type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Type of livestock (e.g. cattle, goat, sheep).",
+            "example": "cattle"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of animals in this collateral group.",
+            "example": 5
+          },
+          "appraised_value": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Appraised value in token base units.",
+            "example": 5000000
+          }
+        },
+        "additionalProperties": false
+      },
+      "V1UpdateCollateralRequest": {
+        "type": "object",
+        "description": "Partial update request for an existing collateral record. At least one field must be provided.",
+        "properties": {
+          "animal_type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Updated animal type.",
+            "example": "goat"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Updated animal count.",
+            "example": 3
+          },
+          "appraised_value": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Updated appraised value in token base units.",
+            "example": 3500000
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "CollateralRecord": {
+        "type": "object",
+        "description": "A livestock collateral record stored in the database. Includes identification, ownership, valuation, and soft-delete status.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique collateral record identifier."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Stellar public key of the collateral owner."
+          },
+          "animal_type": {
+            "type": "string",
+            "description": "Type of livestock (e.g. cattle, goat, sheep)."
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of animals in this collateral group."
+          },
+          "appraised_value": {
+            "type": "integer",
+            "description": "Appraised value in token base units."
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Timestamp when the record was soft-deleted, or null if active."
+          }
+        }
+      },
+      "CollateralPage": {
+        "type": "object",
+        "description": "Paginated response containing a list of collateral records with total count and pagination metadata.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "Array of collateral records for the current page.",
+            "items": {
+              "$ref": "#/components/schemas/CollateralRecord"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of collateral records matching the query."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number (1-indexed)."
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of records per page."
+          }
+        }
+      },
+      "LoanRequestBody": {
+        "type": "object",
+        "description": "Request to create a new loan backed by livestock collateral.",
+        "required": [
+          "borrower",
+          "collateral_id",
+          "amount"
+        ],
+        "properties": {
+          "borrower": {
+            "type": "string",
+            "description": "Stellar public key",
+            "example": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+          },
+          "collateral_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Numeric ID of the collateral backing this loan.",
+            "example": 1
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Gross loan amount in token base units",
+            "example": 3000000
+          }
+        }
+      },
+      "LoanRepayBody": {
+        "type": "object",
+        "description": "Request to repay part or all of an existing loan.",
+        "required": [
+          "borrower",
+          "loan_id",
+          "amount"
+        ],
+        "properties": {
+          "borrower": {
+            "type": "string",
+            "description": "Stellar public key of the borrower repaying the loan.",
+            "example": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+          },
+          "loan_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Numeric ID of the loan to repay.",
+            "example": 1
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Repayment amount in token base units.",
+            "example": 1000000
+          }
+        }
+      },
+      "LoanLiquidateBody": {
+        "type": "object",
+        "description": "Request to liquidate an undercollateralised loan.",
+        "required": [
+          "liquidator",
+          "loan_id",
+          "repay_amount"
+        ],
+        "properties": {
+          "liquidator": {
+            "type": "string",
+            "description": "Stellar public key of the liquidator.",
+            "example": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+          },
+          "loan_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Numeric ID of the loan to liquidate.",
+            "example": 1
+          },
+          "repay_amount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Amount the liquidator will repay in token base units.",
+            "example": 500000
+          }
+        }
+      },
+      "RepaymentPreviewRequest": {
+        "type": "object",
+        "description": "Request to simulate a loan repayment and preview the breakdown.",
+        "required": [
+          "loan_id",
+          "amount"
+        ],
+        "properties": {
+          "loan_id": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Numeric ID of the loan to simulate repayment for.",
+            "example": 1
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Proposed repayment amount in token base units.",
+            "example": 1000000
+          }
+        }
+      },
+      "RepaymentPreviewResponse": {
+        "type": "object",
+        "description": "Simulated repayment breakdown showing how the repayment amount is allocated across principal, interest, and fees.",
+        "properties": {
+          "loan_id": {
+            "type": "integer",
+            "description": "Numeric ID of the loan being simulated."
+          },
+          "repayment_amount": {
+            "type": "integer",
+            "description": "Total repayment amount in token base units."
+          },
+          "breakdown": {
+            "type": "object",
+            "description": "Allocation breakdown of the repayment amount.",
+            "properties": {
+              "principal": {
+                "type": "integer",
+                "description": "Portion allocated to principal reduction."
+              },
+              "interest": {
+                "type": "integer",
+                "description": "Portion allocated to interest payment."
+              },
+              "fees": {
+                "type": "integer",
+                "description": "Portion allocated to protocol fees."
+              },
+              "remaining_balance": {
+                "type": "integer",
+                "description": "Remaining loan balance after this repayment."
+              }
+            }
+          },
+          "projected_health_factor_bps": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Projected health factor after repayment, scaled by 10 000. Null if loan would be fully repaid."
+          },
+          "fully_repaid": {
+            "type": "boolean",
+            "description": "True if this repayment would fully satisfy the loan."
+          }
+        }
+      },
+      "LoanPage": {
+        "type": "object",
+        "description": "Paginated response containing a list of loan records with total count and pagination metadata.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "Array of loan records for the current page.",
+            "items": {
+              "type": "object",
+              "description": "A loan record."
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of loan records matching the query."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number (1-indexed)."
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of records per page."
+          }
+        }
+      },
+      "LoanSummaryResponse": {
+        "type": "object",
+        "description": "Borrower-specific loan portfolio summary with aggregate metrics.",
+        "properties": {
+          "activeLoans": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of active (non-repaid, non-defaulted) loans."
+          },
+          "totalCollateralValue": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Sum of appraised values of all collateral backing active loans."
+          },
+          "averageHealthFactor": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Average health factor across active loans, scaled by 10 000."
+          },
+          "atRiskCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of active loans with health factor below 10 000 (liquidation threshold)."
+          }
+        },
+        "required": [
+          "activeLoans",
+          "totalCollateralValue",
+          "averageHealthFactor",
+          "atRiskCount"
+        ]
+      },
+      "XdrResponse": {
+        "type": "object",
+        "description": "An unsigned Soroban transaction encoded as Base64 XDR. The client must sign this with Freighter and submit to the Stellar network.",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "API version identifier.",
+            "example": "v1"
+          },
+          "xdr": {
+            "type": "string",
+            "description": "Base64-encoded unsigned Soroban transaction XDR"
+          }
+        }
+      },
+      "ScValResponse": {
+        "type": "object",
+        "description": "Raw Soroban ScVal result returned from on-chain contract queries.",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "API version identifier.",
+            "example": "v1"
+          },
+          "result": {
+            "type": "object",
+            "description": "Raw Soroban ScVal result"
+          }
+        }
+      },
+      "HealthFactorResponse": {
+        "type": "object",
+        "description": "Loan health factor response. Values ≥ 10 000 indicate a healthy loan; values < 10 000 indicate the loan is eligible for liquidation.",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "API version identifier.",
+            "example": "v1"
+          },
+          "health_factor": {
+            "type": "integer",
+            "description": "Health factor scaled by 10 000 (≥10000 = healthy)"
+          }
+        }
+      },
+      "WebhookRecord": {
+        "type": "object",
+        "description": "A registered webhook endpoint that receives event notifications via HTTP POST.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique webhook identifier."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "HTTPS URL receiving webhook POST requests."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when the webhook was registered."
+          }
+        }
+      },
+      "WebhookLog": {
+        "type": "object",
+        "description": "Record of a webhook delivery attempt, including the event type, HTTP response status, and timestamp.",
+        "properties": {
+          "webhookId": {
+            "type": "string",
+            "description": "ID of the webhook that was called."
+          },
+          "event": {
+            "type": "string",
+            "description": "Event type that triggered the delivery (e.g. loan_created, loan_repaid)."
+          },
+          "status": {
+            "type": "integer",
+            "description": "HTTP status code returned by the webhook endpoint."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of the delivery attempt."
+          }
+        }
+      },
+      "TransactionRecord": {
+        "type": "object",
+        "description": "A recorded on-chain or off-chain transaction in the StellarKraal system.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique transaction record identifier."
+          },
+          "borrower": {
+            "type": "string",
+            "description": "Stellar public key of the borrower involved."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "loan_request",
+              "repayment",
+              "liquidation"
+            ],
+            "description": "Transaction type category."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "failed"
+            ],
+            "description": "Current transaction status."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Transaction amount in token base units."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when the transaction was recorded."
+          }
+        }
+      },
+      "TransactionPage": {
+        "type": "object",
+        "description": "Paginated response containing a list of transaction records with total count and pagination metadata.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "Array of transaction records for the current page.",
+            "items": {
+              "$ref": "#/components/schemas/TransactionRecord"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of transaction records matching the query."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number (1-indexed)."
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Number of records per page."
+          }
+        }
+      },
+      "UserSettings": {
+        "type": "object",
+        "description": "User preferences including notification settings, language, and currency. Stored per wallet address.",
+        "properties": {
+          "walletAddress": {
+            "type": "string",
+            "description": "Stellar public key associated with these settings."
+          },
+          "joinDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when the user first configured settings."
+          },
+          "notifications": {
+            "type": "object",
+            "description": "Email/push notification preferences.",
+            "properties": {
+              "loanApproved": {
+                "type": "boolean",
+                "description": "Notify when a loan request is approved."
+              },
+              "loanRepaid": {
+                "type": "boolean",
+                "description": "Notify when a loan repayment is confirmed."
+              },
+              "liquidationWarning": {
+                "type": "boolean",
+                "description": "Notify when a loan approaches liquidation threshold."
+              }
+            }
+          },
+          "language": {
+            "type": "string",
+            "description": "Preferred language code (e.g. en, es, fr).",
+            "example": "en"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Preferred display currency code (e.g. USD, EUR, KES).",
+            "example": "USD"
+          }
+        }
+      },
+      "UserSettingsUpdate": {
+        "type": "object",
+        "description": "Partial update request for user settings. Only provided fields are applied.",
+        "properties": {
+          "notifications": {
+            "type": "object",
+            "description": "Updated notification preferences.",
+            "properties": {
+              "loanApproved": {
+                "type": "boolean",
+                "description": "Notify when a loan request is approved."
+              },
+              "loanRepaid": {
+                "type": "boolean",
+                "description": "Notify when a loan repayment is confirmed."
+              },
+              "liquidationWarning": {
+                "type": "boolean",
+                "description": "Notify when a loan approaches liquidation threshold."
+              }
+            }
+          },
+          "language": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "description": "Updated preferred language code."
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 6,
+            "description": "Updated preferred display currency code."
+          }
+        }
+      },
+      "DeletedResponse": {
+        "type": "object",
+        "description": "Confirmation returned after a successful soft-delete operation.",
+        "properties": {
+          "deleted": {
+            "type": "boolean",
+            "description": "Always true on successful deletion.",
+            "example": true
+          },
+          "id": {
+            "type": "string",
+            "description": "ID of the record that was soft-deleted."
+          }
+        }
+      },
+      "RestoredResponse": {
+        "type": "object",
+        "description": "Confirmation returned after a successful restore operation.",
+        "properties": {
+          "restored": {
+            "type": "boolean",
+            "description": "Always true on successful restore.",
+            "example": true
+          },
+          "id": {
+            "type": "string",
+            "description": "ID of the record that was restored."
+          }
+        }
+      },
+      "AdminStats": {
+        "type": "object",
+        "description": "Platform-wide statistics aggregated from database",
+        "required": [
+          "totalUsers",
+          "totalLoans",
+          "totalCollateral",
+          "totalValueLocked",
+          "activeLoansCount"
+        ],
+        "properties": {
+          "totalUsers": {
+            "type": "integer",
+            "description": "Count of unique users (collateral owners + borrowers)",
+            "example": 42
+          },
+          "totalLoans": {
+            "type": "integer",
+            "description": "Total number of loans (all statuses)",
+            "example": 58
+          },
+          "totalCollateral": {
+            "type": "integer",
+            "description": "Total number of collateral items registered",
+            "example": 123
+          },
+          "totalValueLocked": {
+            "type": "number",
+            "description": "Sum of all collateral appraised values in XLM",
+            "example": 1500.5
+          },
+          "activeLoansCount": {
+            "type": "integer",
+            "description": "Count of loans with status 'active' or 'at_risk'",
+            "example": 28
+          }
+        }
+      }
+    },
+    "headers": {
+      "RateLimit-Limit": {
+        "description": "Maximum number of requests allowed in the current window",
+        "schema": {
+          "type": "integer",
+          "example": 60
+        }
+      },
+      "RateLimit-Remaining": {
+        "description": "Number of requests remaining in the current window",
+        "schema": {
+          "type": "integer",
+          "example": 59
+        }
+      },
+      "RateLimit-Reset": {
+        "description": "Unix timestamp (seconds) when the rate limit window resets",
+        "schema": {
+          "type": "integer",
+          "example": 1751000000
+        }
+      },
+      "Retry-After": {
+        "description": "Seconds to wait before retrying (present on 429 responses only)",
+        "schema": {
+          "type": "integer",
+          "example": 60
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Request validation failed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Validation failed",
+              "code": "VALIDATION_ERROR",
+              "details": {
+                "borrower": [
+                  "Required"
+                ],
+                "amount": [
+                  "Number must be greater than 0"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid JWT",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Unauthorized",
+              "code": "UNAUTHORIZED"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Access denied — insufficient permissions",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Forbidden",
+              "code": "FORBIDDEN"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Resource not found",
+              "code": "NOT_FOUND"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Too many requests",
+              "message": "Rate limit exceeded. Please retry after 60 seconds."
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Internal server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Internal server error",
+              "code": "INTERNAL_ERROR"
+            }
+          }
+        }
+      }
+    }
+  }
+}

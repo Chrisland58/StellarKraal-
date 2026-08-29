@@ -1,15 +1,18 @@
-"use client";
-import { useState } from "react";
-import WalletConnect from "@/components/WalletConnect";
-import LoanForm from "@/components/LoanForm";
+import type { Metadata } from "next";
+import BorrowClient from "./BorrowClient";
 
-export default function Borrow() {
-  const [wallet, setWallet] = useState<string | null>(null);
-  return (
-    <main className="max-w-lg mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-brown mb-6">Borrow</h1>
-      <WalletConnect onConnect={setWallet} />
-      {wallet && <LoanForm walletAddress={wallet} />}
-    </main>
-  );
+export const metadata: Metadata = {
+  title: "Borrow — StellarKraal",
+  description: "Register livestock collateral and request a micro-loan on the Stellar network.",
+  alternates: { canonical: "https://stellarkraal.io/borrow" },
+  openGraph: {
+    title: "Borrow — StellarKraal",
+    description: "Register livestock collateral and request a micro-loan on the Stellar network.",
+    url: "https://stellarkraal.io/borrow",
+    images: [{ url: "https://stellarkraal.io/og-banner.png" }],
+  },
+};
+
+export default function BorrowPage() {
+  return <BorrowClient />;
 }

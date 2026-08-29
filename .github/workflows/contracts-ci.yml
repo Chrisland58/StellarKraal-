@@ -1,0 +1,53 @@
+name: Contracts CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts:
+    name: Soroban Contract Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Run Soroban contract tests
+        run: |
+          cargo test --manifest-path contracts/stellarkraal/Cargo.toml
+          echo "Contract tests passed"
+
+      - name: Build release WASM
+        run: |
+          cargo build \
+            --manifest-path contracts/stellarkraal/Cargo.toml \
+            --target wasm32-unknown-unknown \
+            --release
+
+      - name: Check WASM size (100 kB limit)
+        run: |
+          WASM=$(find target/wasm32-unknown-unknown/release -name "*.wasm" -not -name "*.d" | head -1)
+          if [ -z "$WASM" ]; then
+            echo "::error::No WASM file found after build"
+            exit 1
+          fi
+          SIZE=$(wc -c < "$WASM")
+          LIMIT=102400
+          echo "WASM size: ${SIZE} bytes (limit: ${LIMIT} bytes)"
+          if [ "$SIZE" -gt "$LIMIT" ]; then
+            echo "::error file=${WASM}::WASM binary exceeds 100 kB limit (${SIZE} bytes > ${LIMIT} bytes)"
+            exit 1
+          fi
+          echo "WASM size OK: ${SIZE} bytes"

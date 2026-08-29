@@ -1,176 +1,130 @@
-# ADR-009: API v2 Design — REST vs GraphQL vs tRPC
+# ADR-009: API v2 Design Direction
 
-| Field       | Value                        |
-|-------------|------------------------------|
-| Status      | **Accepted**                 |
-| Date        | 2026-08-29                   |
-| Deciders    | StellarKraal Core Team       |
-| Issue       | [#1103](https://github.com/teslims2/StellarKraal-/issues/1103) |
-| Supersedes  | —                            |
-
----
+**Date:** 2026-07-27  
+**Status:** Proposed
 
 ## Context
 
-StellarKraal's current API (`/api/v1/*`) is a set of plain Express REST endpoints that were
-designed for rapid prototyping. As the product moves toward a production release, several pain
-points have emerged:
+The current StellarKraal backend uses a **RESTful API** (Express + Node.js + TypeScript) with endpoints prefixed `/api/v1`. As the platform evolves, we need to decide whether to continue with REST for v2 or adopt a different paradigm.
 
-1. **Over-fetching / under-fetching** — dashboard clients fetch entire loan objects when they
-   only need a subset of fields, increasing payload size over slow mobile connections common in
-   our target African markets.
-2. **No type-safety across the boundary** — the TypeScript frontend has no compile-time
-   guarantees that API shapes match what the backend actually returns.
-3. **Versioning friction** — adding new fields requires duplicating or patching existing
-   endpoint handlers, with no structured migration path.
-4. **Schema documentation** — there is currently no machine-readable contract (OpenAPI, GraphQL
-   schema, etc.) that third-party integrators can consume.
+The key drivers for this decision:
+- **Type safety** between frontend (Next.js/TypeScript) and backend
+- **Developer experience** — reducing boilerplate for new endpoints
+- **Flexibility** — supporting complex queries (e.g., loan history with nested collateral + appraisals)
+- **Ecosystem maturity** — stable tooling, community support, and Stellar/wallet integration compatibility
+- **Migration cost** — effort to adopt a new paradigm vs. iterating on REST
 
-The team evaluated three alternatives for API v2.
-
----
-
-## Options Considered
-
-### Option A — REST (enhanced, OpenAPI-documented)
-
-**Description:** Retain Express REST conventions but add:
-- `zod`-based request/response validation exported as an OpenAPI 3.1 spec
-- Versioned router (`/api/v2/*`)
-- Consistent envelope `{ data, meta, errors }`
-
-**Pros for StellarKraal:**
-- Zero new runtime dependencies — the team already knows Express
-- OpenAPI spec enables auto-generated client SDKs and Swagger UI for external integrators
-- Easy to deploy behind the existing Nginx reverse proxy
-- Incremental migration: v1 and v2 can coexist during transition
-- Widest ecosystem support; well understood by community contributors
-
-**Cons:**
-- Over-fetching still possible for complex queries (e.g. dashboard page needs loan + health +
-  collateral in a single render)
-- Versioning discipline must be enforced manually
-- No end-to-end type safety without additional codegen tooling
-
----
-
-### Option B — GraphQL (Apollo Server)
-
-**Description:** Replace REST endpoints with a single GraphQL endpoint. Types defined in SDL,
-resolvers map to existing `db/store` functions. Apollo Studio for documentation.
-
-**Pros for StellarKraal:**
-- Precise field selection eliminates over-fetching — beneficial on low-bandwidth connections
-- Self-documenting schema; introspection works out of the box
-- Single endpoint simplifies API gateway / proxy config
-
-**Cons:**
-- Significant migration effort: all existing clients must be rewritten
-- Apollo Server adds ~4–6 MB to the Docker image; a concern for low-resource deployment targets
-- N+1 query problem requires `DataLoader` — adds complexity for a small team
-- Mutations for on-chain actions (which require async Stellar transaction signing) do not map
-  cleanly to GraphQL's synchronous request/response model
-- Overkill for the current ~8 endpoints; GraphQL's value scales with query complexity
-- Unfamiliar to the current team, increasing ramp-up time and review friction
-
----
-
-### Option C — tRPC
-
-**Description:** Replace Express REST with tRPC procedures shared between backend and Next.js
-frontend. Types are inferred end-to-end; no schema file needed.
-
-**Pros for StellarKraal:**
-- Best-in-class end-to-end type safety with zero codegen — TypeScript infers procedure types
-  automatically
-- Rapid iteration: adding a new procedure requires one function definition
-- Native React Query integration fits Next.js 14 data fetching patterns
-
-**Cons:**
-- **Tight coupling to the TypeScript/Next.js monorepo** — rules out any future non-TS client
-  (mobile app, third-party integrator) without an additional adapter layer
-- StellarKraal backend is currently a standalone Express service with its own `package.json`
-  and Docker container; sharing tRPC router types across containers requires a monorepo
-  restructure or a published shared package
-- Incompatible with the planned external partner API (agri-insurers, MFIs) which will consume
-  JSON/HTTP, not tRPC procedures
-- Community/tooling ecosystem significantly smaller than REST or GraphQL
-- Migration requires rewriting all existing `fetch` calls in the frontend
-
----
+Three paradigms are evaluated: **REST** (current), **GraphQL**, and **tRPC**.
 
 ## Decision
 
-**Option A — REST with OpenAPI documentation** is selected for API v2.
+**Continue with REST for v2**, with the following refinements:
+- Adopt **OpenAPI 3.1** spec-first development (documented in `backend/openapi.json`)
+- Generate TypeScript client types from OpenAPI using `openapi-typescript`
+- Introduce **HATEOAS-style links** in responses where navigation is beneficial (e.g., loan → collateral → appraisals)
+- Use **JSON:API conventions** for filtering, sorting, and pagination on collection endpoints
 
-### Rationale
+This approach balances type safety improvements, backward compatibility, and low migration cost while maintaining the simplicity and familiarity of REST.
 
-1. **Compatibility first.** StellarKraal targets external integrators (insurance companies,
-   micro-finance institutions, mobile money operators) who expect conventional JSON/HTTP APIs.
-   OpenAPI documentation provides a machine-readable contract they can immediately consume
-   without onboarding to a GraphQL client or a tRPC monorepo.
+## Alternatives Considered
 
-2. **Incremental, low-risk migration.** The `/api/v1` routes continue to work during the
-   transition; individual endpoints can be promoted to v2 one at a time after adding `zod`
-   validation. No big-bang rewrite is needed.
+| Option | Reason not chosen |
+|--------|-------------------|
+| **GraphQL** | Adds significant runtime complexity (schema resolution, N+1 query problem, caching); overkill for the relatively simple StellarKraal data model; requires separate type generation tooling; frontend would need Apollo Client or similar, increasing bundle size. Stellar wallet libraries (Freighter) work naturally with REST but have no GraphQL-specific integration. |
+| **tRPC** | Strong type safety and great DX for monorepos, but StellarKraal is not a monorepo — frontend and backend are separate deployments. tRPC's main advantage (end-to-end TypeScript inference) is diminished when the frontend cannot import backend types directly. Still requires custom serialization for Stellar SDK types (e.g., `xdr.ScVal`). Community is smaller than REST or GraphQL, limiting third-party tooling and examples. |
 
-3. **Team velocity.** The team is already proficient in Express and TypeScript. Introducing
-   GraphQL or restructuring for tRPC would consume sprint capacity that is better spent on
-   on-chain feature work and market testing.
+### Detailed Comparison
 
-4. **Payload concerns are addressed by pagination and projection params.** REST endpoints can
-   accept `?fields=` query parameters and return paginated responses, which resolves the
-   over-fetching concern without the operational overhead of GraphQL.
+#### REST (current + OpenAPI)
+**Pros:**
+- Already implemented; no migration cost
+- HTTP caching (ETags, `Cache-Control`) works out of the box
+- Stellar RPC and Freighter wallet use REST-like JSON-RPC; consistent paradigm
+- OpenAPI tooling (Swagger UI, type generation) is mature
+- Easy to version (`/api/v2`) and deprecate endpoints incrementally
 
-5. **Docker image size matters.** Deployment targets include resource-constrained VPS instances
-   in West and East Africa. Keeping the backend image lean (no Apollo runtime) directly supports
-   the infrastructure strategy.
+**Cons:**
+- Over-fetching/under-fetching requires manual endpoint design
+- Type safety between frontend and backend requires code generation
+- Boilerplate for validation, error handling, and response envelopes
 
----
+#### GraphQL
+**Pros:**
+- Clients request exactly the fields they need (no over-fetching)
+- Single endpoint; introspection and tooling (GraphQL Playground, Apollo DevTools)
+- Strong typing via SDL (Schema Definition Language)
+
+**Cons:**
+- **N+1 query problem** requires DataLoader or manual batching
+- **Caching complexity** — REST caching (HTTP headers) doesn't work; requires custom cache keys or Apollo cache
+- **Schema-first development** adds overhead for small teams
+- **No natural mapping to Stellar SDK** — contract invocations return opaque `xdr.ScVal` that don't serialize cleanly to GraphQL scalars
+- **Frontend bundle size** — Apollo Client is ~40KB minified
+- **Learning curve** for team members unfamiliar with GraphQL resolvers and schema stitching
+
+#### tRPC
+**Pros:**
+- End-to-end type safety with zero codegen (frontend imports backend types)
+- Minimal boilerplate; procedures are just TypeScript functions
+- Built-in input validation via Zod
+- Small bundle size (~10KB)
+
+**Cons:**
+- **Requires monorepo or shared types package** — StellarKraal frontend and backend are separate deployments; shared types would need to be published as an npm package or manually kept in sync
+- **No HTTP caching** — tRPC uses POST requests by default (even for queries), breaking standard REST caching
+- **Stellar SDK interop** — still requires custom serialization for Soroban types
+- **Smaller community** than REST or GraphQL; fewer examples of Stellar + tRPC integration
+- **Not HTTP-semantic** — harder to integrate with non-TypeScript clients (e.g., mobile apps, CLI tools, webhooks)
 
 ## Consequences
 
-### Positive
-- External partners can integrate using any HTTP client or auto-generated SDK from the OpenAPI
-  spec.
-- `zod` schemas serve as the single source of truth for both runtime validation and TypeScript
-  types, reducing schema drift.
-- Swagger UI (`/api/docs`) provides self-serve documentation for the development team and
-  external evaluators.
+**Positive:**
+- **Incremental improvement** — v2 can adopt OpenAPI + type generation without rewriting the entire backend
+- **HTTP semantics** — standard caching, CORS, rate limiting, and observability tools work as expected
+- **Wallet compatibility** — Freighter, Albedo, and other Stellar wallets use REST-like patterns; no impedance mismatch
+- **Team familiarity** — existing Express + REST patterns are well understood
+- **Tooling maturity** — OpenAPI has excellent codegen, validation, and documentation tooling (e.g., `express-openapi-validator`, `openapi-typescript`, Swagger UI)
 
-### Negative / Trade-offs
-- Over-fetching on complex dashboard views is not eliminated, only mitigated. If data access
-  patterns grow significantly more complex, GraphQL can be re-evaluated.
-- Manual versioning discipline is required; a `/api/v3` migration will need the same ADR
-  process.
+**Negative / Trade-offs:**
+- **No automatic end-to-end type safety** — requires maintaining `openapi.json` and running codegen
+- **Over-fetching** on some endpoints — mitigated by sparse fieldsets (`?fields=id,amount,status`) and HATEOAS links for optional related resources
+- **Boilerplate** — each endpoint still needs explicit validation, error handling, and response formatting (though `express-openapi-validator` reduces this)
 
-### Neutral
-- The `/api/v1` router remains in place with a deprecation notice added to each endpoint
-  response header (`Deprecation: true`, `Sunset: 2027-03-01`).
-- A migration guide will be published alongside the v2 release.
+## Implementation Notes
 
----
+For v2, the following conventions should be adopted:
 
-## Implementation Plan
+1. **OpenAPI 3.1 spec** in `backend/openapi.json` — all v2 endpoints documented before implementation
+2. **Type generation** — run `openapi-typescript` in CI to generate `frontend/src/types/api.ts`
+3. **HATEOAS links** — include `_links` in responses where navigation is useful:
+   ```json
+   {
+     "id": "loan-123",
+     "amount": 10000,
+     "_links": {
+       "self": "/api/v2/loans/loan-123",
+       "collateral": "/api/v2/loans/loan-123/collateral",
+       "repayments": "/api/v2/loans/loan-123/repayments"
+     }
+   }
+   ```
+4. **JSON:API conventions** for collections:
+   - Filtering: `?filter[status]=active`
+   - Sorting: `?sort=-createdAt`
+   - Pagination: `?page[offset]=20&page[limit]=10`
+5. **Contract invocation errors** — Soroban errors should be unwrapped and mapped to application error codes (see `docs/api-error-codes.md`)
 
-| Step | Owner | Target Sprint |
-|------|-------|--------------|
-| Add `zod` to backend dependencies | Backend lead | Sprint 14 |
-| Define shared `zod` schemas for all request/response shapes | Backend lead | Sprint 14 |
-| Implement `/api/v2` router with validated handlers | Backend lead | Sprint 15 |
-| Generate OpenAPI 3.1 spec via `zod-to-openapi` | Backend lead | Sprint 15 |
-| Serve Swagger UI at `/api/docs` | Backend lead | Sprint 15 |
-| Update frontend `fetch` calls to `/api/v2` | Frontend lead | Sprint 16 |
-| Add `Deprecation` headers to all `/api/v1` routes | Backend lead | Sprint 16 |
+## Future Reconsideration
 
----
+This decision should be revisited if:
+- The frontend and backend are merged into a monorepo (enabling tRPC)
+- Complex, client-driven queries become frequent (suggesting GraphQL)
+- A mobile app or third-party API clients emerge that would benefit from GraphQL's introspection
 
 ## References
 
-- [OpenAPI Specification 3.1](https://spec.openapis.org/oas/v3.1.0)
-- [zod documentation](https://zod.dev)
-- [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi)
-- [GraphQL vs REST for microservices (thoughtworks.com)](https://www.thoughtworks.com/radar)
-- [tRPC documentation](https://trpc.io/docs)
-- Existing backend: `backend/src/routes/v1.ts`
-- Existing frontend API calls: `frontend/src/components/LoanForm.tsx`, `RepayPanel.tsx`
+- [OpenAPI Specification](https://spec.openapis.org/oas/v3.1.0)
+- [JSON:API](https://jsonapi.org/)
+- [HATEOAS (Richardson Maturity Model Level 3)](https://martinfowler.com/articles/richardsonMaturityModel.html)
+- [ADR-002: JWT-Based Authentication](ADR-002-jwt-auth.md)
+- [API Versioning Strategy](../api-versioning-strategy.md)

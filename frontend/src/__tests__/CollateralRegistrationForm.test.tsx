@@ -1,0 +1,342 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import CollateralRegistrationForm from '@/components/CollateralRegistrationForm';
+import { ToastProvider, ToastContainer } from '@/components/toast';
+
+// Mock dependencies
+jest.mock('@stellar/freighter-api', () => ({
+  signTransaction: jest.fn().mockResolvedValue({ signedTxXdr: 'signed_xdr' }),
+}));
+
+jest.mock('@/lib/stellarUtils', () => ({
+  submitSignedXdr: jest.fn().mockResolvedValue('collateral_123'),
+}));
+
+jest.mock('@/components/ConfirmDialog', () => ({
+  __esModule: true,
+  default: ({
+    open,
+    onConfirm,
+    title,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+    title?: string;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label={title ?? 'Confirm'}>
+        <button type="button" onClick={onConfirm}>
+          Register
+        </button>
+      </div>
+    ) : null,
+}));
+
+global.fetch = jest.fn();
+
+function renderWithToast(ui: React.ReactElement) {
+  return render(
+    <ToastProvider>
+      {ui}
+      <ToastContainer />
+    </ToastProvider>
+  );
+}
+
+/** Fill all required fields and click the submit button (opens ConfirmDialog). */
+function fillAndSubmit() {
+  fireEvent.change(screen.getByPlaceholderText('Number of animals'), { target: { value: '5' } });
+  fireEvent.change(screen.getByPlaceholderText('Average weight per animal'), {
+    target: { value: '450' },
+  });
+  fireEvent.change(screen.getByPlaceholderText('Farm or region name'), {
+    target: { value: 'Green Valley Farm' },
+  });
+  fireEvent.change(screen.getByPlaceholderText('Total value in stroops'), {
+    target: { value: '1000000' },
+  });
+  fireEvent.change(screen.getByPlaceholderText('e.g., Holstein, Boer, Merino'), {
+    target: { value: 'Nguni' },
+  });
+  fireEvent.change(screen.getByPlaceholderText('Age of the animal'), { target: { value: '3' } });
+  const file = new File(['img'], 'cow.png', { type: 'image/png' });
+  fireEvent.change(screen.getByLabelText(/upload animal photo/i), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /Register Collateral/ }));
+}
+
+/** Click through the ConfirmDialog to actually trigger submission. */
+function confirmSubmit() {
+  fireEvent.click(screen.getByRole('button', { name: /^Register$/ }));
+}
+
+describe('CollateralRegistrationForm', () => {
+  const mockWalletAddress = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
+  const mockOnSuccess = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.clear();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ xdr: 'mock_xdr', api_version: 'v1' }),
+    });
+  });
+
+  it('renders all form fields', () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    expect(screen.getByText('Register Livestock Collateral')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Animal Type/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Quantity/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Estimated Weight/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Health Status/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Location/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Appraised Value/)).toBeInTheDocument();
+  });
+
+  it('shows validation errors for empty required fields', async () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Register Collateral/ }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Quantity is required').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Estimated weight is required').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Location is required').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Appraised value is required').length).toBeGreaterThan(0);
+    });
+
+    const summary = screen.getByRole('alert', { name: /errors in this form/i });
+    expect(summary).toHaveAttribute('aria-live', 'assertive');
+    expect(screen.getAllByRole('link').length).toBeGreaterThan(1);
+  });
+
+  it('shows real-time validation for quantity field', async () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    const quantityInput = screen.getByPlaceholderText('Number of animals');
+
+    fireEvent.change(quantityInput, { target: { value: '-5' } });
+    await waitFor(() => {
+      expect(screen.getByText('Quantity must be a positive number')).toBeInTheDocument();
+    });
+
+    fireEvent.change(quantityInput, { target: { value: '10' } });
+    await waitFor(() => {
+      expect(screen.queryByText('Quantity must be a positive number')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows real-time validation for location field', async () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    const locationInput = screen.getByPlaceholderText('Farm or region name');
+
+    fireEvent.change(locationInput, { target: { value: 'ab' } });
+    await waitFor(() => {
+      expect(screen.getByText('Location must be at least 3 characters')).toBeInTheDocument();
+    });
+
+    fireEvent.change(locationInput, { target: { value: 'Farm ABC' } });
+    await waitFor(() => {
+      expect(screen.queryByText('Location must be at least 3 characters')).not.toBeInTheDocument();
+    });
+  });
+
+  it('does not submit when there are validation errors', async () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Number of animals'), { target: { value: '-5' } });
+    fireEvent.click(screen.getByRole('button', { name: /Register Collateral/ }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Quantity must be a positive number').length).toBeGreaterThan(0);
+    });
+    // ConfirmDialog should not appear
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('submits form with valid data and shows success toast', async () => {
+    renderWithToast(
+      <CollateralRegistrationForm walletAddress={mockWalletAddress} onSuccess={mockOnSuccess} />
+    );
+
+    fillAndSubmit();
+    confirmSubmit();
+
+    // Confirm the dialog to actually submit
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Register$/ })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Register$/ }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/collateral/register'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('cattle'),
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/Collateral registered successfully/);
+      expect(mockOnSuccess).toHaveBeenCalledWith('collateral_123');
+    });
+  });
+
+  it('displays error toast on submission failure', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Registration failed' }),
+    });
+
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    fillAndSubmit();
+    confirmSubmit();
+
+    // Confirm the dialog to actually submit
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Register$/ })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Register$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/Registration failed/);
+    });
+  });
+
+  it('shows loading state during submission', async () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    fillAndSubmit();
+    confirmSubmit();
+
+    await waitFor(() => {
+      expect(screen.getByText('Processing…')).toBeInTheDocument();
+    });
+  });
+
+  it('resets form after successful submission', async () => {
+    renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+    const quantityInput = screen.getByPlaceholderText('Number of animals') as HTMLInputElement;
+    fillAndSubmit();
+    confirmSubmit();
+
+    // Confirm the dialog to actually submit
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Register$/ })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Register$/ }));
+
+    await waitFor(() => {
+      expect(quantityInput.value).toBe('');
+    });
+  });
+
+  describe('Auto-save functionality', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('auto-saves form data every 5 seconds', () => {
+      renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+      fireEvent.change(screen.getByPlaceholderText('Number of animals'), {
+        target: { value: '5' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Farm or region name'), {
+        target: { value: 'Test Farm' },
+      });
+
+      jest.advanceTimersByTime(5000);
+
+      const saved = localStorage.getItem('stellarkraal_collateral_form');
+      expect(saved).toBeTruthy();
+      const parsed = JSON.parse(saved!);
+      expect(parsed.data.quantity).toBe('5');
+      expect(parsed.data.location).toBe('Test Farm');
+    });
+
+    it('shows restore prompt when saved data exists', () => {
+      localStorage.setItem(
+        'stellarkraal_collateral_form',
+        JSON.stringify({
+          walletAddress: mockWalletAddress,
+          data: { quantity: '10', location: 'Saved Farm' },
+          timestamp: new Date().toISOString(),
+        })
+      );
+
+      renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+      expect(screen.getByText(/You have unsaved progress/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Restore/ })).toBeInTheDocument();
+    });
+
+    it('restores saved data when user clicks restore', () => {
+      localStorage.setItem(
+        'stellarkraal_collateral_form',
+        JSON.stringify({
+          walletAddress: mockWalletAddress,
+          data: {
+            animalType: 'goat',
+            quantity: '10',
+            weight: '50',
+            healthStatus: 'excellent',
+            location: 'Saved Farm',
+            appraisedValue: '500000',
+          },
+          timestamp: new Date().toISOString(),
+        })
+      );
+
+      renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+      const restoreButton = screen.getByRole('button', { name: /Restore/ });
+      fireEvent.click(restoreButton);
+
+      expect((screen.getByPlaceholderText('Number of animals') as HTMLInputElement).value).toBe(
+        '10'
+      );
+      expect((screen.getByPlaceholderText('Farm or region name') as HTMLInputElement).value).toBe(
+        'Saved Farm'
+      );
+    });
+
+    it('clears saved data on successful submission', async () => {
+      jest.useRealTimers();
+
+      localStorage.setItem(
+        'stellarkraal_collateral_form',
+        JSON.stringify({
+          walletAddress: mockWalletAddress,
+          data: { quantity: '5' },
+          timestamp: new Date().toISOString(),
+        })
+      );
+
+      renderWithToast(<CollateralRegistrationForm walletAddress={mockWalletAddress} />);
+
+      fillAndSubmit();
+      confirmSubmit();
+
+      // Confirm the dialog to actually submit
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Register$/ })).toBeInTheDocument()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^Register$/ }));
+
+      await waitFor(() => {
+        expect(localStorage.getItem('stellarkraal_collateral_form')).toBeNull();
+      });
+    });
+  });
+});

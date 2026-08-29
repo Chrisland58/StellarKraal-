@@ -1,3 +1,615 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Safe Area Inset Support for iOS ── */
+@supports (padding: max(0px)) {
+  .safe-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ── Light mode CSS variables ── */
+:root {
+  --color-bg: #FEFCF8;
+  --color-bg-secondary: #FDF6EC;
+  --color-bg-card: #FFFFFF;
+  --color-text: #3D2810;
+  --color-text-secondary: #5D3C15;
+  --color-text-muted: #8B5A1F;
+  --color-border: #F0D9B8;
+  --color-border-strong: #D4A05A;
+  --color-gold: #D97706;
+  --color-gold-hover: #B45309;
+  --color-nav-bg: #FEFCF8;
+  --color-nav-border: rgba(61, 40, 16, 0.1);
+  --color-skeleton-base: #e8ddd0;
+  --color-skeleton-shine: #f5ede0;
+
+  /* ── Semantic design tokens — light (#297) ── */
+  --token-primary:          #5D3C15;
+  --token-primary-hover:    #3D2810;
+  --token-on-primary:       #FFFFFF;
+  --token-secondary:        #B45309;
+  --token-secondary-hover:  #92400E;
+  --token-on-secondary:     #FFFFFF;
+  --token-accent:           #D97706;
+  --token-danger:           #DC2626;
+  --token-danger-subtle:    #FEE2E2;
+  --token-on-danger:        #FFFFFF;
+  --token-success:          #16A34A;
+  --token-success-subtle:   #D4F4DD;
+  --token-on-success:       #FFFFFF;
+  --token-warning:          #D97706;
+  --token-warning-subtle:   #FEF3C7;
+  --token-on-warning:       #FFFFFF;
+  --token-surface:          #FDF6EC;
+  --token-surface-raised:   #FFFFFF;
+  --token-text:             #3D2810;
+  --token-text-subtle:      #5D3C15;
+  --token-text-muted:       #8B5A1F;
+  --token-text-inverse:     #FFFFFF;
+  --token-border:           #F0D9B8;
+  --token-border-strong:    #D4A05A;
+}
+
+/* ── Dark mode CSS variables ── */
+.dark {
+  --color-bg: #1A1007;
+  --color-bg-secondary: #2A1B0B;
+  --color-bg-card: #2A1B0B;
+  --color-text: #FDF6EC;
+  --color-text-secondary: #F0D9B8;
+  --color-text-muted: #D4A05A;
+  --color-border: #3D2810;
+  --color-border-strong: #5D3C15;
+  --color-gold: #F8CA47;
+  --color-gold-hover: #FBDC7D;
+  --color-nav-bg: #2A1B0B;
+  --color-nav-border: rgba(240, 217, 184, 0.1);
+  --color-skeleton-base: #3D2810;
+  --color-skeleton-shine: #5D3C15;
+
+  /* ── Semantic design tokens — dark (#297) ── */
+  --token-primary:          #F0D9B8;
+  --token-primary-hover:    #FDF6EC;
+  --token-on-primary:       #1A1007;
+  --token-secondary:        #FBDC7D;
+  --token-secondary-hover:  #FDEAB3;
+  --token-on-secondary:     #1A1007;
+  --token-accent:           #F8CA47;
+  --token-danger:           #F87171;
+  --token-danger-subtle:    #450A0A;
+  --token-on-danger:        #FFFFFF;
+  --token-success:          #4ADE80;
+  --token-success-subtle:   #052E16;
+  --token-on-success:       #FFFFFF;
+  --token-warning:          #FBD049;
+  --token-warning-subtle:   #451A03;
+  --token-on-warning:       #1A1007;
+  --token-surface:          #2A1B0B;
+  --token-surface-raised:   #2A1B0B;
+  --token-text:             #FDF6EC;
+  --token-text-subtle:      #F0D9B8;
+  --token-text-muted:       #D4A05A;
+  --token-text-inverse:     #1A1007;
+  --token-border:           #3D2810;
+  --token-border-strong:    #5D3C15;
+}
+
+/* ── Base styles using variables ── */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ── Dark mode overrides for Tailwind utility classes ──
+   These ensure existing components using bg-cream / text-brown
+   automatically adapt without requiring per-component changes.
+*/
+.dark .bg-cream,
+.dark .bg-cream-50,
+.dark .bg-cream-100,
+.dark .bg-cream-200 {
+  background-color: var(--color-bg-card) !important;
+}
+
+.dark .bg-white {
+  background-color: var(--color-bg-card) !important;
+}
+
+.dark .text-brown,
+.dark .text-brown-700,
+.dark .text-brown-800 {
+  color: var(--color-text) !important;
+}
+
+.dark .text-brown-600 {
+  color: var(--color-text-secondary) !important;
+}
+
+.dark .text-brown-500,
+.dark .text-brown\/60,
+.dark .text-brown\/70 {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .border-brown\/10,
+.dark .border-brown-200 {
+  border-color: var(--color-border) !important;
+}
+
+.dark .border-brown\/20,
+.dark .border-brown\/30 {
+  border-color: var(--color-border-strong) !important;
+}
+
+/* Card / panel backgrounds */
+.dark .shadow,
+.dark .shadow-lg,
+.dark .shadow-md {
+  --tw-shadow-color: rgba(0, 0, 0, 0.5);
+}
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base) 25%,
+    var(--color-skeleton-shine) 50%,
+    var(--color-skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Health factor flash animation (#868) ───────────────────────────────────── */
+@keyframes flashHighlight {
+  0% { background-color: rgba(217, 119, 6, 0.25); }
+  100% { background-color: transparent; }
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Typography component classes (#298, #788 responsive) ── */
+@layer components {
+  /* h1 — fluid: 1.75rem (mobile) → 2.75rem (desktop) */
+  .text-h1 {
+    font-size: clamp(1.75rem, 4vw + 0.5rem, 2.75rem);
+    line-height: 1.15;
+    font-weight: 700;
+    color: var(--token-text);
+  }
+  /* h2 — fluid: 1.375rem → 2.25rem */
+  .text-h2 {
+    font-size: clamp(1.375rem, 3vw + 0.5rem, 2.25rem);
+    line-height: 1.2;
+    font-weight: 700;
+    color: var(--token-text);
+  }
+  /* h3 — fluid: 1.125rem → 1.75rem */
+  .text-h3 {
+    font-size: clamp(1.125rem, 2.5vw + 0.25rem, 1.75rem);
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--token-text);
+  }
+  /* h4 — fluid: 1rem → 1.375rem */
+  .text-h4 {
+    font-size: clamp(1rem, 1.5vw + 0.25rem, 1.375rem);
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--token-text);
+  }
+  /* body — fluid: 0.9375rem → 1.0625rem */
+  .text-body {
+    font-size: clamp(0.9375rem, 1vw + 0.25rem, 1.0625rem);
+    line-height: 1.6;
+    font-weight: 400;
+    color: var(--token-text);
+  }
+  .text-body-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 400;
+    color: var(--token-text-subtle);
+  }
+  .text-caption {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 400;
+    color: var(--token-text-muted);
+  }
+  .text-label {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    color: var(--token-text-subtle);
+  }
+}
+
+/* ── Focus-visible ring — closes #782 ──────────────────────────────────────
+   Provides a consistent, high-contrast focus ring for keyboard navigation
+   across all interactive elements (buttons, links, inputs, selects, textareas).
+
+   Rules:
+   • Uses :focus-visible so mouse users do NOT see the ring.
+   • Ring colour: --token-accent (gold, 4.5:1+ on the nav/page backgrounds).
+   • Offset: 2 px so the ring sits outside the element border.
+   • No outline:none is applied anywhere without a replacement ring style.
+   • Works in both light and dark mode via CSS custom properties.
+*/
+
+*:focus-visible {
+  outline: 3px solid var(--token-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Suppress the legacy :focus ring that some browsers still show */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Stronger ring for dark mode where the gold needs more pop */
+.dark *:focus-visible {
+  outline-color: var(--token-accent);
+}
+
+/* ── WalletConnect state-transition fade (#808) ──────────────────────────────
+   150 ms fade used whenever WalletConnect switches between states.
+   Respects prefers-reduced-motion: the animation collapses to instant when
+   the user has requested reduced motion.
+*/
+@keyframes wc-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.wc-fade {
+  animation: wc-fade-in 150ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-fade {
+    animation: none;
+  }
+}
+
+/* ── Button ripple effect (#809) ─────────────────────────────────────────────
+   Applied via the `.btn-ripple` utility class on Button components.
+   The ripple element is injected by JS (useRipple hook) and animated here.
+   Duration: 400 ms. Colour: white 30% opacity.
+   Disabled for prefers-reduced-motion users.
+*/
+@keyframes ripple-expand {
+  from {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple .ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  animation: ripple-expand 400ms ease-out forwards;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ripple .ripple-wave {
+    display: none;
+  }
+}
+
+/* ── Toast animations ── */
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-fade-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 0.3s ease-out forwards;
+}
+
+.toast-exit {
+  animation: toast-fade-out 0.3s ease-in forwards;
+}
+
+/* ── High Contrast Mode Support (Windows Forced Colors) ── */
+@supports (forced-colors: active) {
+  /* Ensure all interactive elements are visible in high contrast mode */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    border-color: CanvasText;
+    color: CanvasText;
+    background-color: Canvas;
+  }
+
+  button:hover,
+  a:hover,
+  button:focus,
+  a:focus {
+    background-color: Highlight;
+    color: HighlightText;
+    border-color: HighlightText;
+  }
+
+  /* Add forced borders for separators instead of background-only styling */
+  hr,
+  .border,
+  [class*="border-"],
+  .divide-y > * + *,
+  .divide-x > * + * {
+    border-color: CanvasText !important;
+  }
+
+  /* Ensure backgrounds don't obscure text in high contrast mode */
+  [class*="bg-"],
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+
+  /* Icon-only buttons need visible text or aria-labels in high contrast mode */
+  button:not(:has(span:not([aria-hidden="true"]))) {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+
+  /* Ensure form elements are properly styled */
+  input:invalid,
+  textarea:invalid,
+  select:invalid {
+    border-color: CanvasText;
+    outline: 2px solid CanvasText;
+    outline-offset: 1px;
+  }
+
+  /* Improve visibility of focus states */
+  *:focus-visible {
+    outline: 3px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+/* ── Print stylesheet (#811) ─────────────────────────────────────────────────
+   Applied when the user prints or uses print-preview in Chrome / Firefox.
+   Goals:
+   - Hide navigation, sidebars, action buttons, toasts, and interactive UI.
+   - Show loan summary, collateral details, amounts, and dates cleanly.
+   - Inject a brand header (StellarKraal) and a print date footer on every page.
+   - Does NOT affect screen display.
+*/
+@media print {
+  /* ── Force white background / black text for readability ── */
+  * {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* ── Hide non-printable chrome ── */
+  nav,
+  aside,
+  header,
+  footer,
+  [data-print="hide"],
+  .no-print,
+  /* Navbar and utility nav */
+  #main-content > nav,
+  [aria-label="Main navigation"],
+  /* Mobile bottom nav */
+  .mobile-bottom-nav,
+  /* Toasts / notifications */
+  [role="status"][aria-live],
+  [role="alert"][aria-live="polite"],
+  .toast-container,
+  /* Action / CTA buttons */
+  button:not([data-print="show"]),
+  /* Sidebar */
+  [role="complementary"],
+  /* Skip-to-content link */
+  a[href="#main-content"],
+  /* Offline / network banners */
+  .offline-banner,
+  /* Theme toggle */
+  .theme-toggle,
+  /* Search / filter bar */
+  .search-filter-bar,
+  /* Pagination controls */
+  .pagination,
+  /* Wallet connect widget outside the loan summary */
+  .wallet-connect-widget {
+    display: none !important;
+  }
+
+  /* ── Page setup ── */
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+
+  /* ── Brand header — printed at the top of every page ── */
+  body::before {
+    content: "StellarKraal — Livestock Micro-Lending";
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Print date footer — printed at the bottom of every page ── */
+  body::after {
+    content: "Printed: " attr(data-print-date);
+    display: block;
+    font-size: 0.75rem;
+    color: #666 !important;
+    border-top: 1px solid #ccc;
+    padding-top: 0.5rem;
+    margin-top: 1rem;
+    text-align: right;
+  }
+
+  /* ── Loan / collateral summary content ── */
+  /* Ensure content fills the page width */
+  main,
+  #main-content,
+  [data-print="content"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Keep loan cards readable */
+  .loan-summary-card,
+  .collateral-detail-card,
+  [data-print="show"] {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    border-radius: 0 !important;
+    margin-bottom: 1rem;
+    padding: 0.75rem !important;
+    page-break-inside: avoid;
+  }
+
+  /* Tables inside loan summaries */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 0.375rem 0.5rem;
+    text-align: left;
+    font-size: 0.875rem;
+  }
+
+  /* Links — show URL inline for printed copies */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75rem;
+    color: #444 !important;
+  }
+
+  /* Don't append URL for internal / anchor links */
+  a[href^="#"]::after,
+  a[href^="/"]::after {
+    content: "";
+  }
+
+  /* Avoid page breaks inside key sections */
+  h1, h2, h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  img {
+    max-width: 96px !important;
+    max-height: 96px !important;
+  }
+
+  /* ── Ensure charts and dynamic visuals don't break the layout ── */
+  canvas, svg {
+    max-width: 100% !important;
+  }
+}
+
+/* ── Density tokens (#816) ────────────────────────────────────────────────────
+   Applied as data-density on <html> via useDensity hook.
+   All list views, tables, and cards should use these tokens for padding and
+   font size instead of hard-coded Tailwind classes wherever density matters.
+*/
+
+/* Default (comfortable) */
+:root {
+  --density-cell-py: 0.75rem;   /* vertical cell padding */
+  --density-cell-px: 1rem;      /* horizontal cell padding */
+  --density-row-gap: 0.75rem;   /* gap between rows in lists */
+  --density-font-size: 0.875rem; /* table / list body text */
+}
+
+/* Compact: tighter padding, smaller text */
+[data-density="compact"] {
+  --density-cell-py: 0.375rem;
+  --density-cell-px: 0.625rem;
+  --density-row-gap: 0.375rem;
+  --density-font-size: 0.8125rem;
+}
+
+/* Spacious: extra padding, larger tap targets */
+[data-density="spacious"] {
+  --density-cell-py: 1.25rem;
+  --density-cell-px: 1.5rem;
+  --density-row-gap: 1.25rem;
+  --density-font-size: 1rem;
+}
+
+/* Utility classes that consume the tokens */
+@layer components {
+  .density-cell {
+    padding-top: var(--density-cell-py);
+    padding-bottom: var(--density-cell-py);
+    padding-left: var(--density-cell-px);
+    padding-right: var(--density-cell-px);
+    font-size: var(--density-font-size);
+  }
+
+  .density-row-gap {
+    gap: var(--density-row-gap);
+  }
+}
+
+/* ── Dot-grid pattern for hero sections ── */
+.dot-grid {
+  background-image: radial-gradient(var(--token-border) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

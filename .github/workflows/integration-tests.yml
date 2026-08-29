@@ -1,12 +1,10 @@
 name: Backend Integration Tests
 
 on:
-  pull_request:
-    paths:
-      - "backend/**"
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   integration-tests:
@@ -35,8 +33,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run integration tests with coverage
-        run: npm run test:coverage -- --testTimeout=60000
+      - name: Run backend integration tests
+        env:
+          NODE_ENV: test
+        run: npx jest --runInBand --testMatch="**/*.integration.test.ts" --testTimeout=60000 --json --outputFile=coverage/jest-integration-results.json || true
+
+      - name: Annotate Jest integration failures
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const reportPath = path.join(process.cwd(), 'coverage', 'jest-integration-results.json');
+            if (!fs.existsSync(reportPath)) return;
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            for (const testResult of report.testResults || []) {
+              const file = path.relative(process.cwd(), testResult.name);
+              for (const assertion of testResult.assertionResults || []) {
+                if (assertion.status !== 'failed') continue;
+                const message = `${assertion.ancestorTitles.join(' > ')} > ${assertion.title}\n${assertion.failureMessages.join('\n')}`;
+                console.log(`::error file=${file}::${message.replace(/\r?\n/g, '%0A')}`);
+              }
+            }
+            if (!report.success) throw new Error('Backend integration tests failed');
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
