@@ -1,0 +1,45 @@
+name: Rust Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/**"
+  pull_request:
+    paths:
+      - "contracts/**"
+
+# Allow one concurrent publish; cancel in-flight runs on the same branch.
+concurrency:
+  group: rust-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  doc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to push to gh-pages
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust wasm target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Build contract docs
+        working-directory: contracts/stellarkraal
+        run: cargo doc --no-deps --target wasm32-unknown-unknown
+
+      # On every push to main, deploy the generated HTML to the gh-pages branch
+      # under the /contracts sub-path so it is reachable at:
+      #   https://<owner>.github.io/<repo>/contracts/
+      - name: Deploy to GitHub Pages (contracts/)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: contracts/stellarkraal/target/wasm32-unknown-unknown/doc
+          destination_dir: contracts
+          keep_files: true
+          commit_message: "docs(contracts): publish cargo doc [skip ci]"

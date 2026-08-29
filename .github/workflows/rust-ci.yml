@@ -1,0 +1,90 @@
+name: Soroban Contract CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/**"
+      - ".github/workflows/rust-ci.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "contracts/**"
+      - ".github/workflows/rust-ci.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Soroban Contracts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-git-
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: contracts/stellarkraal/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Build Soroban contract (release)
+        run: |
+          cd contracts/stellarkraal
+          cargo build --release
+
+      - name: Run tests
+        run: |
+          cd contracts/stellarkraal
+          cargo test
+
+      - name: Install nightly Rust (fuzz)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache cargo-fuzz binary
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-bin-${{ runner.os }}
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked || true
+
+      - name: Fuzz interest_rate (60s)
+        working-directory: contracts/stellarkraal
+        run: cargo +nightly fuzz run interest_rate -- -max_total_time=60
+
+      - name: Upload fuzz crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts-rust-ci
+          path: contracts/stellarkraal/fuzz/artifacts/
+          if-no-files-found: ignore

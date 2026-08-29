@@ -3,7 +3,7 @@ import { stellarPublicKeySchema, validateStellarPublicKey } from "./stellar";
 describe("Stellar Public Key Validator", () => {
   describe("Valid keys", () => {
     const validKeys = [
-      "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
+      "GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6",
       "GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H",
       "GDQP2KPQGKIHYJGXNUIYOMHARUARCA7DJT5FO2FFOOKY3B2WSQHG4W37",
     ];
@@ -34,7 +34,7 @@ describe("Stellar Public Key Validator", () => {
         reason: "too short (52 chars)",
       },
       {
-        key: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWNEXTRA",
+        key: "GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6EXTRA",
         reason: "too long (61 chars)",
       },
       {
@@ -101,7 +101,7 @@ describe("Stellar Public Key Validator", () => {
     });
 
     it("should handle whitespace", () => {
-      const keyWithSpaces = " GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN ";
+      const keyWithSpaces = " GASPH4OCYOERATXIKLPNURXUP7ISAQU2KWFB5XLUJ3LQHKHOCN3CEGD6 ";
       const result = stellarPublicKeySchema.safeParse(keyWithSpaces);
       expect(result.success).toBe(false); // Should not auto-trim
     });
