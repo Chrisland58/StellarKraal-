@@ -240,6 +240,151 @@ deployments. Mainnet deployments require an additional review gate; see the depl
 
 ---
 
+## Code Review
+
+Explicit review guidelines align expectations for everyone involved and help keep review cycles short. This section covers what reviewers look for, how to give constructive feedback, the review SLA, and the responsibilities of both authors and reviewers.
+
+---
+
+### Author Responsibilities
+
+Before requesting review, the PR author should:
+
+- [ ] Self-review the diff — read every changed line as if you were a reviewer seeing it for the first time.
+- [ ] Ensure CI is green and all tests pass locally.
+- [ ] Write a clear PR description: what changed, why, and how to test it.
+- [ ] Link the issue being resolved (e.g. `Closes #1234`).
+- [ ] Keep the PR focused — one logical change per PR. Split unrelated fixes into separate PRs.
+- [ ] Respond to review comments within one business day. If a comment requires discussion, start a thread rather than leaving it unresolved.
+- [ ] Mark conversations as resolved only after addressing the feedback (not just to clear the UI).
+- [ ] Request re-review after pushing substantive changes.
+
+---
+
+### Reviewer Responsibilities
+
+Reviewers are expected to:
+
+- [ ] Provide a first response within **2 business days** of the review request (see [SLA](#review-sla)).
+- [ ] Check out the branch and run the tests locally for non-trivial changes.
+- [ ] Give specific, actionable feedback — point to the line, explain the concern, and suggest an alternative when possible.
+- [ ] Distinguish between blocking issues and suggestions (see [Comment Conventions](#comment-conventions)).
+- [ ] Approve only when all blocking issues are resolved.
+- [ ] Not re-open resolved conversations without adding new information.
+
+---
+
+### What to Check
+
+Review every PR against the following dimensions:
+
+#### Correctness
+- Does the code do what the PR description says it does?
+- Are edge cases (empty arrays, null values, network timeouts) handled?
+- Are error paths tested, not just the happy path?
+
+#### Tests
+- Is there a test for the new behaviour or bug fix?
+- Do the tests cover the most likely failure modes?
+- Are existing tests left green (no skipped tests without a tracked issue)?
+
+#### Security
+- Are all inputs validated and sanitized at API boundaries?
+- Are SQL queries parameterized (no string interpolation into queries)?
+- Are secrets read from environment variables, not hardcoded?
+- Does the change introduce any new permissions or access control implications?
+- Are JWTs verified before trusting their claims?
+
+#### Documentation
+- If the PR changes a public API, environment variable, or user-facing behavior, is the relevant documentation updated?
+- Are new functions and exported types documented with JSDoc or inline comments?
+
+#### Performance
+- Does the change introduce N+1 queries or unbounded loops over database results?
+- Are large payloads paginated or projected?
+- Does the change add a synchronous/blocking call on the hot path?
+
+#### Style and Maintainability
+- Is the code readable without needing to read the full diff context?
+- Are variable and function names clear?
+- Is the change consistent with the project's existing patterns (error handling style, response shapes, etc.)?
+
+---
+
+### Comment Conventions
+
+Use prefixes to signal the urgency of a comment, so the author can triage quickly:
+
+| Prefix | Meaning |
+|--------|---------|
+| `blocking:` | Must be addressed before approval. This indicates a correctness, security, or test gap. |
+| `nit:` | Minor style or naming preference. Non-blocking; the author can address it or leave a reason for not doing so. |
+| `question:` | Genuine curiosity — the reviewer wants to understand the decision. Non-blocking. |
+| `suggestion:` | An alternative approach worth considering. Non-blocking; the author decides. |
+| `note:` | Context or background the author might find useful. No action required. |
+
+**Examples:**
+
+```
+blocking: This query is not parameterized. `userId` is concatenated directly into the SQL string,
+which opens a SQL injection vector. Use `db.prepare('SELECT * FROM users WHERE id = ?').get(userId)` instead.
+
+nit: Prefer `const` over `let` here since the variable is never reassigned.
+
+suggestion: We could cache this response with `setResponseCache` to avoid the extra DB round-trip
+on repeated reads. Not critical for this PR — could be a follow-up.
+```
+
+---
+
+### Tone and Constructive Feedback
+
+Code review is about the code, not the person. The goal is a better product, not winning an argument.
+
+**Do:**
+- Frame concerns as questions when you're not certain ("Is this safe to do if X is null?")
+- Acknowledge good decisions ("Nice use of the existing cache here.")
+- Explain the *why* behind a blocking comment, not just the *what*.
+- Assume good intent — the author likely had a reason for their approach.
+
+**Avoid:**
+- Directives without explanation ("Change this.") — always explain why.
+- Sarcasm or condescension ("This is obviously wrong.").
+- Commenting on author style preferences unrelated to the project's conventions.
+- Piling on after another reviewer has already raised the same concern — use a 👍 reaction instead.
+
+If a review thread becomes heated or unproductive, take it to a synchronous conversation (call or pairing session) and post a summary back in the PR for the record.
+
+---
+
+### Review SLA
+
+| Milestone | Target |
+|-----------|--------|
+| First response (acknowledge or initial review) | Within **2 business days** of review request |
+| Re-review after author updates | Within **1 business day** of re-review request |
+| Final approval or explicit block | Within **2 business days** of the last change set |
+
+If a reviewer cannot meet the SLA (e.g., on leave, blocked by other priorities), they should:
+1. Comment on the PR explaining the delay and expected return date.
+2. Or reassign the review to another team member.
+
+PRs that have had no reviewer activity for more than 3 business days may be escalated by the author to the #engineering Slack channel.
+
+---
+
+### Minimum Approvals
+
+| Change type | Required approvals |
+|-------------|--------------------|
+| Documentation-only change | 1 |
+| Backend or frontend feature/fix | 1 |
+| Soroban contract change | 2 (including at least one smart-contract reviewer) |
+| Infrastructure / Terraform change | 2 (including at least one infrastructure reviewer) |
+| Security-sensitive change (auth, secrets, IAM) | 2 (including at least one security reviewer) |
+
+---
+
 ## Reviewer Checklist
 
 Before approving a pull request, reviewers should confirm:
