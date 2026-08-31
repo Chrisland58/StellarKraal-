@@ -5,8 +5,14 @@ import { EmptyLoansIllustration } from '@/components/illustrations';
 import { formatXlmFromStroops } from '@/lib/formatMoney';
 
 interface Props {
-  onProceed: (loanId: string, amount: string) => void;
+  onProceed?: (loanId: string, amount: string) => void;
   onApplyForLoan?: () => void;
+  /**
+   * When provided, locks the calculator to this loan and hides the loan ID
+   * input/picker — used when embedding the calculator on a page that already
+   * has a specific loan in context (e.g. the loan detail page).
+   */
+  loanId?: number | string;
 }
 
 interface RepaymentPreview {
@@ -24,8 +30,13 @@ interface RepaymentPreview {
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export default function LoanRepaymentCalculator({ onProceed, onApplyForLoan }: Props) {
-  const [loanId, setLoanId] = useState('');
+export default function LoanRepaymentCalculator({
+  onProceed,
+  onApplyForLoan,
+  loanId: fixedLoanId,
+}: Props) {
+  const isFixedLoan = fixedLoanId !== undefined && fixedLoanId !== null;
+  const [loanId, setLoanId] = useState(isFixedLoan ? String(fixedLoanId) : '');
   const [amount, setAmount] = useState('');
   const [loanOptions, setLoanOptions] = useState<number[]>([]);
   const [loansLoaded, setLoansLoaded] = useState(false);
@@ -33,10 +44,14 @@ export default function LoanRepaymentCalculator({ onProceed, onApplyForLoan }: P
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const parsedLoanId = useMemo(() => Number(loanId), [loanId]);
+  const parsedLoanId = useMemo(
+    () => (isFixedLoan ? Number(fixedLoanId) : Number(loanId)),
+    [isFixedLoan, fixedLoanId, loanId]
+  );
   const parsedAmount = useMemo(() => Number(amount), [amount]);
 
   useEffect(() => {
+    if (isFixedLoan) return undefined;
     let mounted = true;
     async function loadLoans() {
       try {
@@ -60,7 +75,7 @@ export default function LoanRepaymentCalculator({ onProceed, onApplyForLoan }: P
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isFixedLoan]);
 
   useEffect(() => {
     if (
@@ -111,7 +126,7 @@ export default function LoanRepaymentCalculator({ onProceed, onApplyForLoan }: P
         Preview principal, interest, fees, and health impact before repaying.
       </p>
 
-      {loansLoaded && loanOptions.length === 0 && (
+      {!isFixedLoan && loansLoaded && loanOptions.length === 0 && (
         <EmptyState
           illustration={<EmptyLoansIllustration />}
           message="You have no active loans"
@@ -121,25 +136,30 @@ export default function LoanRepaymentCalculator({ onProceed, onApplyForLoan }: P
       )}
 
       <div className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>
-            Loan ID
-          </label>
-          <input
-            className="w-full rounded-lg px-3 py-2 min-h-[44px] bg-transparent"
-            style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-            placeholder="Enter loan ID"
-            value={loanId}
-            onChange={(e) => setLoanId(e.target.value)}
-            list="loan-options"
-            type="number"
-          />
-          <datalist id="loan-options">
-            {loanOptions.map((id) => (
-              <option key={id} value={id} />
-            ))}
-          </datalist>
-        </div>
+        {!isFixedLoan && (
+          <div>
+            <label
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--color-text)' }}
+            >
+              Loan ID
+            </label>
+            <input
+              className="w-full rounded-lg px-3 py-2 min-h-[44px] bg-transparent"
+              style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+              placeholder="Enter loan ID"
+              value={loanId}
+              onChange={(e) => setLoanId(e.target.value)}
+              list="loan-options"
+              type="number"
+            />
+            <datalist id="loan-options">
+              {loanOptions.map((id) => (
+                <option key={id} value={id} />
+              ))}
+            </datalist>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>
@@ -213,7 +233,7 @@ export default function LoanRepaymentCalculator({ onProceed, onApplyForLoan }: P
           <button
             type="button"
             className="mt-4 w-full bg-brown text-cream py-2.5 rounded-xl font-semibold hover:bg-brown/80 transition min-h-[44px] dark:bg-gold dark:text-brown"
-            onClick={() => onProceed(String(preview.loan_id), String(preview.repayment_amount))}
+            onClick={() => onProceed?.(String(preview.loan_id), String(preview.repayment_amount))}
           >
             Proceed to Repay
           </button>

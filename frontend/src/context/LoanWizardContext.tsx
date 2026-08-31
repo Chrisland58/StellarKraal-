@@ -1,5 +1,6 @@
 'use client';
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import { useFormAutoSave } from '@/hooks/useFormAutoSave';
 
 export type AnimalType = 'cattle' | 'goat' | 'sheep';
 
@@ -38,9 +39,15 @@ interface WizardCtx extends WizardState {
   prevStep: () => void;
   reset: () => void;
   canProceed: () => boolean;
+  /**
+   * Drops the persisted autosave without resetting in-memory state (#523).
+   * Used right after a successful loan submission, where the just-submitted
+   * values are still shown on screen but shouldn't be offered for restore.
+   */
+  clearSavedProgress: () => void;
 }
 
-function makeItem(overrides?: Partial<CollateralItem>): CollateralItem {
+export function makeItem(overrides?: Partial<CollateralItem>): CollateralItem {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     animalType: "cattle",
@@ -52,6 +59,7 @@ function makeItem(overrides?: Partial<CollateralItem>): CollateralItem {
 }
 
 const defaults: WizardState = {
+  collaterals: [],
   animalType: 'cattle',
   count: '',
   appraisedValue: '',
@@ -64,35 +72,52 @@ const defaults: WizardState = {
 };
 
 const STORAGE_KEY = 'loan_wizard_state';
+// Persisted wizard state older than this is treated as gone rather than
+// restored (#523) — a form left mid-fill for a day is more likely stale
+// than something the borrower still wants to resume.
+const SAVE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 const LoanWizardContext = createContext<WizardCtx | null>(null);
 
-export function LoanWizardProvider({ children }: { children: ReactNode }) {
+export function LoanWizardProvider({
+  children,
+  walletAddress,
+}: {
+  children: ReactNode;
+  walletAddress?: string;
+}) {
   const [state, setState] = useState<WizardState>(defaults);
-  const [mounted, setMounted] = useState(false);
+  const restoredRef = useRef(false);
 
-  // Load from localStorage on mount
+  // Autosaves `state` to localStorage as the wizard is filled in, and gives
+  // us restore/clear helpers (#523). Scoping by walletAddress, when known,
+  // keeps one wallet from resuming another's in-progress loan request.
+  const { restoreSavedData, clearSavedData } = useFormAutoSave<WizardState>({
+    storageKey: STORAGE_KEY,
+    data: state,
+    walletAddress,
+    interval: 1000,
+    expiryMs: SAVE_EXPIRY_MS,
+  });
+
+  // Restore once on mount so the wizard reopens at the last completed step.
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setState(JSON.parse(saved));
-      } catch {
-        // Ignore parse errors
-      }
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const restored = restoreSavedData();
+    if (restored) {
+      setState(restored);
     }
-    setMounted(true);
+    // Intentionally run once — restoreSavedData reads storage synchronously
+    // and re-running it on every render would fight the autosave interval.
   }, []);
-
-  // Save to localStorage whenever state changes
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-  }, [state, mounted]);
 
   function setField<K extends keyof WizardState>(key: K, value: WizardState[K]) {
     setState((s) => ({ ...s, [key]: value }));
+  }
+
+  function setCollaterals(items: CollateralItem[]) {
+    setState((s) => ({ ...s, collaterals: items }));
   }
 
   function canProceed(): boolean {
@@ -122,12 +147,21 @@ export function LoanWizardProvider({ children }: { children: ReactNode }) {
 
   function reset() {
     setState(defaults);
-    localStorage.removeItem(STORAGE_KEY);
+    clearSavedData();
   }
 
   return (
     <LoanWizardContext.Provider
-      value={{ ...state, setField, nextStep, prevStep, reset, canProceed }}
+      value={{
+        ...state,
+        setField,
+        setCollaterals,
+        nextStep,
+        prevStep,
+        reset,
+        canProceed,
+        clearSavedProgress: clearSavedData,
+      }}
     >
       {children}
     </LoanWizardContext.Provider>

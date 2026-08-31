@@ -13,13 +13,13 @@ export interface PaginationState {
   slice: <T>(items: T[]) => T[];
 }
 
-export function usePagination(totalItems: number): PaginationState {
+export function usePagination(totalItems: number, defaultLimit: PageSize = 10): PaginationState {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const rawPage = parseInt(searchParams.get('page') ?? '1', 10);
-  const rawLimit = parseInt(searchParams.get('limit') ?? '10', 10);
+  const rawLimit = parseInt(searchParams.get('limit') ?? String(defaultLimit), 10);
 
   const limit: PageSize = (PAGE_SIZE_OPTIONS as readonly number[]).includes(rawLimit)
     ? (rawLimit as PageSize)

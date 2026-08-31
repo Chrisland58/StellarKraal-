@@ -520,6 +520,96 @@ body {
     page-break-inside: avoid;
   }
 
+  /* ── Loan summary specific print layout — #1096 ── */
+
+  /* Loan summary section wrapper — targets LoanSummaryCards and LoanDetail */
+  .loan-summary-print,
+  [data-print-section="loan-summary"] {
+    display: block !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Loan summary table: clear layout for principal, status, dates, health factor */
+  .loan-summary-print table,
+  [data-print-section="loan-summary"] table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .loan-summary-print th,
+  .loan-summary-print td,
+  [data-print-section="loan-summary"] th,
+  [data-print-section="loan-summary"] td {
+    border: 1px solid #999;
+    padding: 0.5rem 0.625rem;
+    text-align: left;
+  }
+
+  .loan-summary-print th,
+  [data-print-section="loan-summary"] th {
+    background: #f5f5f5 !important;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #333 !important;
+  }
+
+  /* Key fields row highlight */
+  .loan-summary-print tr.loan-summary-highlight td,
+  [data-print-section="loan-summary"] tr.loan-summary-highlight td {
+    background: #fefaf3 !important;
+    font-weight: 600;
+  }
+
+  /* Health factor — keep colour cues in greyscale print */
+  .loan-summary-print .health-factor-safe,
+  [data-print-section="loan-summary"] .health-factor-safe {
+    font-weight: 700;
+  }
+
+  /* Loan amount — large, prominent */
+  .loan-summary-print .loan-amount-print,
+  [data-print-section="loan-summary"] .loan-amount-print {
+    font-size: 1.125rem;
+    font-weight: 700;
+  }
+
+  /* Status badge — readable text only */
+  .loan-summary-print .status-badge,
+  [data-print-section="loan-summary"] .status-badge {
+    border: 1px solid #999 !important;
+    background: none !important;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  /* Hide action buttons and health gauge animation inside loan summary */
+  .loan-summary-print button,
+  .loan-summary-print [role="progressbar"],
+  .loan-summary-print canvas,
+  [data-print-section="loan-summary"] button,
+  [data-print-section="loan-summary"] [role="progressbar"],
+  [data-print-section="loan-summary"] canvas {
+    display: none !important;
+  }
+
+  /* Collateral detail card inside loan summary */
+  .loan-summary-print .collateral-print-row,
+  [data-print-section="loan-summary"] .collateral-print-row {
+    border-top: 1px solid #ccc;
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  /* ── End loan summary print styles — #1096 ── */
+
   /* Tables inside loan summaries */
   table {
     width: 100%;

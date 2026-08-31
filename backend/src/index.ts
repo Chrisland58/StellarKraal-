@@ -1736,6 +1736,92 @@ app.put(
 // ── User Profile ──────────────────────────────────────────────────────────────
 
 /**
+ * @openapi
+ * /profile:
+ *   get:
+ *     tags:
+ *       - profile
+ *     summary: Get the authenticated user's profile
+ *     description: Returns the caller's own profile, including wallet address, display name, join date, and loan/collateral counts. First login auto-creates the underlying profile record.
+ *     operationId: getProfile
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Profile found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: User profile summary.
+ *               properties:
+ *                 walletAddress:
+ *                   type: string
+ *                   description: Stellar G... public key
+ *                   example: GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN
+ *                 displayName:
+ *                   type: string
+ *                   description: User-chosen display name
+ *                   example: Alice
+ *                 joinedAt:
+ *                   type: string
+ *                   description: ISO timestamp the profile was first created
+ *                   example: 2026-01-15T10:00:00.000Z
+ *                 loanCount:
+ *                   type: integer
+ *                   description: Total number of loans belonging to this user
+ *                   example: 3
+ *                 collateralCount:
+ *                   type: integer
+ *                   description: Total number of collateral records owned by this user
+ *                   example: 2
+ *       '401':
+ *         $ref: '#/components/responses/Unauthorized'
+ *       '404':
+ *         description: No profile record exists for this user yet
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ */
+app.get(
+  '/api/v1/profile',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = (req as any).user as { publicKey?: string } | undefined;
+    if (!user?.publicKey) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const profile = getProfile(user.publicKey);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ error: 'Not found', message: 'No profile exists for this user yet' });
+    }
+
+    const { total: loanCount } = listLoans({ borrowerAddress: user.publicKey, page: 1, limit: 1 });
+    const { total: collateralCount } = listCollateral({
+      ownerId: user.publicKey,
+      page: 1,
+      limit: 1,
+    });
+
+    res.json({
+      walletAddress: profile.walletAddress,
+      displayName: profile.displayName,
+      joinedAt: profile.createdAt,
+      loanCount,
+      collateralCount,
+    });
+  })
+);
+
+/**
  * PATCH /api/v1/profile
  *
  * Update the authenticated user's profile.

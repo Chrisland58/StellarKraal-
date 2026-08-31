@@ -24,6 +24,13 @@ Describe how this was tested locally.
 - [ ] Documentation updated if needed
 - [ ] CHANGELOG updated or release notes covered by release-please
 
+## API Changes (fill out only if this PR adds, modifies, or removes API endpoints)
+
+- [ ] `docs/api-changelog.md` updated with new endpoints, breaking changes, or deprecations
+- [ ] Breaking changes include migration steps and a sunset date
+- [ ] `backend/openapi.json` updated to reflect the new/changed endpoint(s)
+- [ ] `API-Version` header behaviour is unchanged, or a new version section is opened
+
 ## Smart Contract Changes (fill out only if this PR touches `contracts/stellarkraal/`)
 
 - [ ] ABI remains backward-compatible, or a migration path is documented below

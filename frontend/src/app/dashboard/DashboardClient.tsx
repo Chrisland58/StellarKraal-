@@ -2,25 +2,75 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { GlossaryTerm } from "@/components/GlossaryTerm";
 import WalletConnect from "@/components/WalletConnect";
 import CollateralCard from "@/components/CollateralCard";
-import RepayPanel from "@/components/RepayPanel";
-import HealthGauge from "@/components/HealthGauge";
-import LoanRepaymentCalculator from "@/components/LoanRepaymentCalculator";
 import TransactionHistory from "@/components/TransactionHistory";
 import SkeletonHealthDashboard from "@/components/SkeletonHealthDashboard";
+import SkeletonLoanCard from "@/components/SkeletonLoanCard";
 import HelpMenu from "@/components/HelpMenu";
 import OnboardingModal from "@/components/OnboardingModal";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { useHealthFactor } from "@/hooks/useHealthFactor";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { Hero } from "@/components/Hero";
+import { useToast } from "@/components/toast";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+// ── Lazy-loaded heavy components ─────────────────────────────────────────────
+// Using next/dynamic with ssr:false prevents hydration mismatches for
+// canvas/SVG-heavy components. Skeleton fallbacks maintain layout stability.
+
+const HealthGauge = dynamic(() => import("@/components/HealthGauge"), {
+  ssr: false,
+  loading: () => <SkeletonHealthDashboard />,
+});
+
+const LoanRepaymentCalculator = dynamic(
+  () => import("@/components/LoanRepaymentCalculator"),
+  {
+    ssr: false,
+    loading: () => <SkeletonLoanCard />,
+  },
+);
+
+const RepayPanel = dynamic(() => import("@/components/RepayPanel"), {
+  ssr: false,
+  loading: () => <SkeletonLoanCard />,
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Lazy-loaded heavy components ─────────────────────────────────────────────
+// Using next/dynamic with ssr:false prevents hydration mismatches for
+// canvas/SVG-heavy components. Skeleton fallbacks maintain layout stability.
+
+const HealthGauge = dynamic(() => import("@/components/HealthGauge"), {
+  ssr: false,
+  loading: () => <SkeletonHealthDashboard />,
+});
+
+const LoanRepaymentCalculator = dynamic(
+  () => import("@/components/LoanRepaymentCalculator"),
+  {
+    ssr: false,
+    loading: () => <SkeletonLoanCard />,
+  },
+);
+
+const RepayPanel = dynamic(() => import("@/components/RepayPanel"), {
+  ssr: false,
+  loading: () => <SkeletonLoanCard />,
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function DashboardClient() {
   const router = useRouter();
+  const toast = useToast();
   const [wallet, setWallet] = useState<string | null>(null);
   const [loanId, setLoanId] = useState("");
   const [activeTab, setActiveTab] = useState<TabName>("overview");
@@ -37,14 +87,19 @@ export default function DashboardClient() {
       setHasCollateral(false);
       return;
     }
-    fetch(`${API}/api/collateral?owner=${wallet}`)
+    fetchWithRetry(`${API}/api/collateral?owner=${wallet}`, {
+      toast: {
+        onRetry: (attempt) => toast.warning(`Retrying… (attempt ${attempt + 1})`),
+        onError: (message) => toast.error(message),
+      },
+    })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((body) => {
         const items = Array.isArray(body?.data) ? body.data : [];
         setHasCollateral(items.length > 0);
       })
       .catch(() => setHasCollateral(false));
-  }, [wallet]);
+  }, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect if user has loan
   useEffect(() => {
@@ -52,14 +107,19 @@ export default function DashboardClient() {
       setHasLoan(false);
       return;
     }
-    fetch(`${API}/api/loans?borrower=${wallet}`)
+    fetchWithRetry(`${API}/api/loans?borrower=${wallet}`, {
+      toast: {
+        onRetry: (attempt) => toast.warning(`Retrying… (attempt ${attempt + 1})`),
+        onError: (message) => toast.error(message),
+      },
+    })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((body) => {
         const items = Array.isArray(body?.data) ? body.data : [];
         setHasLoan(items.length > 0);
       })
       .catch(() => setHasLoan(false));
-  }, [wallet]);
+  }, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Read hash from URL on mount and when it changes
   useEffect(() => {
@@ -91,6 +151,13 @@ export default function DashboardClient() {
     }
     setActiveTab(TABS[nextIndex].id);
   };
+
+  // Fetch loans to check for at-risk health factors
+  const { loans } = useLoans({ refreshInterval: 60_000 });
+  const loansWithHealth = loans as unknown as LoanWithHealth[];
+
+  const { shouldShow: showLiquidationWarning, atRiskLoans, dismiss: dismissWarning } =
+    useLiquidationWarning(loansWithHealth);
 
   function handleProceedToRepay(nextLoanId: string, _nextAmount: string) {
     setLoanId(nextLoanId);
@@ -129,20 +196,9 @@ export default function DashboardClient() {
           <div className="mt-4">
             <TransactionHistory walletAddress={wallet} />
           </div>
-          {isHealthLoading ? (
-            <SkeletonHealthDashboard />
-          ) : (
-            <div className="mt-8 rounded-2xl bg-white p-6 shadow">
-              <h2 className="mb-3 text-xl font-semibold text-brown">
-                <GlossaryTerm termKey="healthFactor" />
-              </h2>
-              <div className="flex items-center gap-2">
-                <input
-                  className="flex-1 rounded-lg border border-brown/30 px-3 py-2"
-                  placeholder="Loan ID"
-                  value={loanId}
-                  onChange={(e) => setLoanId(e.target.value)}
-                />
+          <div className="border-b border-brown/20 mb-6">
+            <div className="flex gap-4" role="tablist" aria-label="Dashboard views">
+              {tabs.map((tab, index) => (
                 <button
                   key={tab.id}
                   role="tab"

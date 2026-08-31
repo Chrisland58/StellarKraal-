@@ -1,12 +1,13 @@
-"use client";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
-import SearchFilterBar from "@/components/SearchFilterBar";
-import PageTransition from "@/components/PageTransition";
-import Card from "@/components/Card";
-import { badgeVariants } from "@/lib/animations";
-import { useScrollPosition } from "@/hooks/useScrollPosition";
+'use client';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
+import SearchFilterBar from '@/components/SearchFilterBar';
+import PageTransition from '@/components/PageTransition';
+import Card from '@/components/Card';
+import ScrollToTopButton from '@/components/ScrollToTopButton';
+import { badgeVariants } from '@/lib/animations';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 interface Loan {
   id: string;
@@ -23,14 +24,14 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 /** Maps loan status to design-token badge classes (WCAG AA compliant). */
 function statusBadgeClasses(status: string): string {
   switch (status) {
-    case "active":
-      return "bg-success-light text-success-dark";
-    case "repaid":
-      return "bg-gold-100 text-gold-700 dark:bg-gold-900/40 dark:text-gold-300";
-    case "liquidated":
-      return "bg-error-light text-error-dark";
+    case 'active':
+      return 'bg-success-light text-success-dark';
+    case 'repaid':
+      return 'bg-gold-100 text-gold-700 dark:bg-gold-900/40 dark:text-gold-300';
+    case 'liquidated':
+      return 'bg-error-light text-error-dark';
     default:
-      return "bg-brown-100 text-brown-600 dark:bg-brown-700 dark:text-brown-300";
+      return 'bg-brown-100 text-brown-600 dark:bg-brown-700 dark:text-brown-300';
   }
 }
 
@@ -147,6 +148,7 @@ export default function LoansListClient() {
           <LoanListContent />
         </Suspense>
       </main>
+      <ScrollToTopButton />
     </PageTransition>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -183,60 +184,91 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer (#524) */}
       {open && (
-        <ul
-          id="mobile-menu"
-          className="md:hidden flex flex-col border-t py-2"
-          style={{ borderColor: "var(--color-nav-border)" }}
-          role="list"
-        >
-          {NAV_SECTIONS.map(({ href, label, icon }) => {
-            const active =
-              pathname === href || pathname.startsWith(href + "/");
-            const isDashboard = href === "/dashboard";
-            return (
-              <li key={href}>
-                {/*
-                 * Mobile active state (#781):
-                 * — left border pill (4 px) instead of bottom to suit the vertical layout
-                 * — same token colours as desktop
-                 */}
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => setOpen(false)}
-                  className={[
-                    "relative flex items-center gap-2 px-4 min-h-[44px] transition font-medium",
-                    active ? "border-l-4 font-bold" : "hover:bg-[var(--color-border)]",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  style={
-                    active
-                      ? {
-                          color: "var(--token-primary)",
-                          borderLeftColor: "var(--token-primary)",
-                          backgroundColor:
-                            "color-mix(in srgb, var(--token-primary) 8%, transparent)",
+        <>
+          {/* Overlay — tapping it dismisses the drawer, same as the close button */}
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/40"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+          />
+          {/*
+           * Focus is trapped inside the open drawer (#524) so keyboard users
+           * can't tab into content hidden behind the overlay. Escape and an
+           * outside click both close it via onDeactivate.
+           */}
+          <FocusTrap
+            active={open}
+            focusTrapOptions={{
+              onDeactivate: () => setOpen(false),
+              clickOutsideDeactivates: true,
+              escapeDeactivates: true,
+              fallbackFocus: "#mobile-menu",
+            }}
+          >
+            <div
+              id="mobile-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation menu"
+              tabIndex={-1}
+              className="md:hidden fixed inset-x-0 top-14 z-50 border-t shadow-lg"
+              style={{
+                borderColor: "var(--color-nav-border)",
+                backgroundColor: "var(--color-nav-bg)",
+              }}
+            >
+              <ul className="flex flex-col py-2" role="list">
+                {NAV_SECTIONS.map(({ href, label, icon }) => {
+                  const active =
+                    pathname === href || pathname.startsWith(href + "/");
+                  const isDashboard = href === "/dashboard";
+                  return (
+                    <li key={href}>
+                      {/*
+                       * Mobile active state (#781):
+                       * — left border pill (4 px) instead of bottom to suit the vertical layout
+                       * — same token colours as desktop
+                       */}
+                      <Link
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => setOpen(false)}
+                        className={[
+                          "relative flex items-center gap-2 px-4 min-h-[44px] transition font-medium",
+                          active ? "border-l-4 font-bold" : "hover:bg-[var(--color-border)]",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={
+                          active
+                            ? {
+                                color: "var(--token-primary)",
+                                borderLeftColor: "var(--token-primary)",
+                                backgroundColor:
+                                  "color-mix(in srgb, var(--token-primary) 8%, transparent)",
+                              }
+                            : {
+                                color: "var(--token-text-muted)",
+                              }
                         }
-                      : {
-                          color: "var(--token-text-muted)",
-                        }
-                  }
-                >
-                  {/* lucide icon — decorative */}
-                  <Icon icon={icon} size="sm" className="text-current" />
-                  {label}
-                  {/* #803: notification badge on dashboard link in mobile menu */}
-                  {isDashboard && atRiskCount > 0 && (
-                    <NotificationBadge count={atRiskCount} />
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                      >
+                        {/* lucide icon — decorative */}
+                        <Icon icon={icon} size="sm" className="text-current" />
+                        {label}
+                        {/* #803: notification badge on dashboard link in mobile menu */}
+                        {isDashboard && atRiskCount > 0 && (
+                          <NotificationBadge count={atRiskCount} />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </FocusTrap>
+        </>
       )}
     </nav>
   );

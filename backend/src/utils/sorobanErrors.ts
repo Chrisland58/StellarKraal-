@@ -23,6 +23,13 @@ const SOROBAN_ERROR_MESSAGES: Record<number, string> = {
   17: "Insufficient oracle quorum: not enough valid price submissions",
   18: "Invalid price: price value is out of bounds or otherwise invalid",
   19: "Contract is not paused",
+  20: "Reentrancy guard: another call is already in progress",
+  21: "Contract is already paused",
+  22: "Arithmetic overflow detected",
+  23: "Caller is not on the approved liquidator whitelist",
+  24: "No upgrade pending: propose an upgrade before executing",
+  25: "Timelock not elapsed: 24-hour upgrade delay has not passed",
+  26: "Oracle required: cannot remove the last oracle while active loans exist",
 };
 
 // Matches Soroban host-error strings like: Error(Contract, #4)

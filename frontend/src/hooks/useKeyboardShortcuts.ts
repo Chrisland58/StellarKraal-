@@ -2,9 +2,10 @@
 import { useEffect } from "react";
 
 export interface Shortcut {
-  key: string;       // e.g. "b", "r", "?"
+  key: string;       // e.g. "b", "r", "?", "C" (uppercase for Shift+C)
   label: string;     // human-readable action name
-  hint: string;      // e.g. "B"
+  hint: string;      // e.g. "B", "Shift+C"
+  shift?: boolean;   // if true, requires shiftKey to be held
   action: () => void;
 }
 
@@ -22,10 +23,19 @@ export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       // Ignore modifier combos (Ctrl/Alt/Meta) to avoid browser conflicts
+      // shiftKey is allowed through — shift-based shortcuts are matched below
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (isInputFocused()) return;
 
-      const match = shortcuts.find((s) => s.key === e.key);
+      const match = shortcuts.find((s) => {
+        if (s.key !== e.key) return false;
+        // If the shortcut requires Shift, the event must have shiftKey.
+        // If the shortcut does NOT require Shift, the event must NOT have shiftKey
+        // (prevents plain-key shortcuts from firing when Shift is held).
+        const requiresShift = s.shift === true;
+        return requiresShift ? e.shiftKey === true : e.shiftKey !== true;
+      });
+
       if (match) {
         e.preventDefault();
         match.action();

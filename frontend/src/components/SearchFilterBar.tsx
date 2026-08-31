@@ -18,6 +18,7 @@ export default function SearchFilterBar({
 }: Props) {
   const {
     filters,
+    debouncedQuery,
     setQuery,
     toggleStatus,
     toggleType,
@@ -132,7 +133,7 @@ export default function SearchFilterBar({
       {/* Active filter chips */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2" aria-label="Active filters">
-          {filters.query && <Chip label={`"${filters.query}"`} onRemove={() => setQuery('')} />}
+          {debouncedQuery && <Chip label={`"${debouncedQuery}"`} onRemove={() => setQuery('')} />}
           {filters.statuses.map((s) => (
             <Chip key={s} label={s} onRemove={() => removeStatus(s)} />
           ))}

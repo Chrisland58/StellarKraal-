@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 // Suppress expected console.error noise from React's error boundary
@@ -50,5 +51,47 @@ describe("ErrorBoundary", () => {
     );
     // componentDidCatch calls console.error in dev (NODE_ENV=test counts as non-production)
     expect(spy).toHaveBeenCalled();
+  });
+
+  // #522: retry support used to wrap individual LoanWizard steps
+  describe("onRetry", () => {
+    it("shows a retry button instead of Reload when onRetry is provided", () => {
+      const onRetry = jest.fn();
+      render(
+        <ErrorBoundary onRetry={onRetry} retryLabel="← Back to previous step">
+          <Bomb shouldThrow={true} />
+        </ErrorBoundary>,
+      );
+      expect(screen.getByRole("button", { name: /back to previous step/i })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^reload$/i })).toBeNull();
+    });
+
+    it("calls onRetry and clears the error so children render again", async () => {
+      const user = userEvent.setup();
+      const onRetry = jest.fn();
+
+      function Wrapper() {
+        const [shouldThrow, setShouldThrow] = React.useState(true);
+        return (
+          <ErrorBoundary
+            onRetry={() => {
+              onRetry();
+              setShouldThrow(false);
+            }}
+            retryLabel="Try again"
+          >
+            <Bomb shouldThrow={shouldThrow} />
+          </ErrorBoundary>
+        );
+      }
+
+      render(<Wrapper />);
+      expect(screen.getByText(/something went wrong/i)).toBeTruthy();
+
+      await user.click(screen.getByRole("button", { name: /try again/i }));
+
+      expect(onRetry).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("OK")).toBeTruthy();
+    });
   });
 });

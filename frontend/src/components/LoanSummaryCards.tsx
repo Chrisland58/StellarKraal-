@@ -63,7 +63,7 @@ const METRICS: {
  */
 export default function LoanSummaryCards({ summary }: LoanSummaryCardsProps) {
   return (
-    <section aria-label="Loan summary">
+    <section aria-label="Loan summary" data-print-section="loan-summary" className="loan-summary-print">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {METRICS.map(({ key, label, formatter, ariaLabel }) => (
           <Card key={key}>

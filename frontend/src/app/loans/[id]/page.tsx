@@ -1,9 +1,10 @@
-"use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import ErrorState from "@/components/ErrorState";
-import DetailSkeleton from "@/components/DetailSkeleton";
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import ErrorState from '@/components/ErrorState';
+import DetailSkeleton from '@/components/DetailSkeleton';
+import LoanRepaymentCalculator from '@/components/LoanRepaymentCalculator';
 
 interface LoanRecord {
   id: string;
@@ -14,12 +15,13 @@ interface LoanRecord {
   createdAt: string;
 }
 
-type ErrorType = "404" | "network" | null;
+type ErrorType = '404' | 'network' | null;
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function LoanDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [loan, setLoan] = useState<LoanRecord | null>(null);
   const [error, setError] = useState<ErrorType>(null);
   const [loading, setLoading] = useState(true);
@@ -31,10 +33,10 @@ export default function LoanDetailPage() {
       setError(null);
       const res = await fetch(`${API}/api/loans/${id}`);
       if (res.status === 404) {
-        setError("404");
+        setError('404');
         setLoan(null);
       } else if (!res.ok) {
-        setError("network");
+        setError('network');
         setLoan(null);
       } else {
         const data = await res.json();
@@ -42,7 +44,7 @@ export default function LoanDetailPage() {
         setError(null);
       }
     } catch {
-      setError("network");
+      setError('network');
       setLoan(null);
     } finally {
       setLoading(false);
@@ -57,17 +59,24 @@ export default function LoanDetailPage() {
     return <DetailSkeleton />;
   }
 
-  if (error === "404") {
+  if (error === '404') {
     return (
       <main className="max-w-2xl mx-auto px-4 py-10">
         <Link href="/loans" className="text-brown/60 hover:text-brown text-sm mb-6 inline-block">
           ← Back to Loans
         </Link>
         <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 p-6 text-center">
-          <p className="text-5xl mb-4" aria-hidden="true">📄</p>
+          <p className="text-5xl mb-4" aria-hidden="true">
+            📄
+          </p>
           <h1 className="text-2xl font-bold text-brown mb-2">Loan Not Found</h1>
-          <p className="text-brown/60 mb-6">No loan record exists for ID <code className="bg-brown/10 px-1 rounded">{id}</code>.</p>
-          <Link href="/loans" className="inline-block bg-brown text-cream px-5 py-2 rounded-xl font-semibold hover:bg-brown/80 transition focus:outline-none focus:ring-2 focus:ring-brown focus:ring-offset-2">
+          <p className="text-brown/60 mb-6">
+            No loan record exists for ID <code className="bg-brown/10 px-1 rounded">{id}</code>.
+          </p>
+          <Link
+            href="/loans"
+            className="inline-block bg-brown text-cream px-5 py-2 rounded-xl font-semibold hover:bg-brown/80 transition focus:outline-none focus:ring-2 focus:ring-brown focus:ring-offset-2"
+          >
             ← Back to Loans
           </Link>
         </div>
@@ -75,7 +84,7 @@ export default function LoanDetailPage() {
     );
   }
 
-  if (error === "network") {
+  if (error === 'network') {
     return (
       <main className="max-w-2xl mx-auto px-4 py-10">
         <ErrorState message="Could not load loan – check your connection" onRetry={fetchLoan} />
@@ -114,24 +123,46 @@ export default function LoanDetailPage() {
           <span className="text-brown/50 text-sm">Loan ID</span>
           <button
             onClick={copyId}
-            aria-label={copied ? "Loan ID copied" : "Copy loan ID"}
-            title={copied ? "Copied!" : "Copy ID"}
+            aria-label={copied ? 'Loan ID copied' : 'Copy loan ID'}
+            title={copied ? 'Copied!' : 'Copy ID'}
             className="shrink-0 text-brown/50 hover:text-brown transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brown rounded"
           >
             {copied ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 text-green-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                />
               </svg>
             )}
           </button>
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-brown/50">Borrower</dt>
-          <dd className="font-medium text-brown truncate" title={loan.borrower}>{loan.borrower.slice(0, 8)}…{loan.borrower.slice(-4)}</dd>
+          <dd className="font-medium text-brown truncate" title={loan.borrower}>
+            {loan.borrower.slice(0, 8)}…{loan.borrower.slice(-4)}
+          </dd>
           <dt className="text-brown/50">Collateral ID</dt>
           <dd className="font-medium text-brown">{loan.collateral_id}</dd>
           <dt className="text-brown/50">Amount</dt>
@@ -139,9 +170,15 @@ export default function LoanDetailPage() {
           <dt className="text-brown/50">Status</dt>
           <dd className="font-medium text-brown capitalize">{loan.status}</dd>
           <dt className="text-brown/50">Created</dt>
-          <dd className="font-medium text-brown">{new Date(loan.createdAt).toLocaleDateString()}</dd>
+          <dd className="font-medium text-brown">
+            {new Date(loan.createdAt).toLocaleDateString()}
+          </dd>
         </dl>
       </div>
+
+      {loan.status === 'active' && (
+        <LoanRepaymentCalculator loanId={loan.id} onProceed={() => router.push('/dashboard')} />
+      )}
     </main>
   );
 }

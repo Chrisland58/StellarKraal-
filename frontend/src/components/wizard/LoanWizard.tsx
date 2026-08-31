@@ -1,5 +1,7 @@
 "use client";
+import { useState } from "react";
 import { LoanWizardProvider, useWizard } from "@/context/LoanWizardContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import StepCollateral from "./steps/StepCollateral";
 import StepAmount from "./steps/StepAmount";
 import StepReview from "./steps/StepReview";
@@ -17,7 +19,16 @@ interface Props {
 }
 
 function WizardInner({ walletAddress }: Props) {
-  const { step } = useWizard();
+  const { step, prevStep } = useWizard();
+  // Bumped on every retry so the ErrorBoundary's `key` changes and the
+  // crashed step remounts cleanly, even when there's no previous step to
+  // go back to (#522).
+  const [retryKey, setRetryKey] = useState(0);
+
+  function handleStepRetry() {
+    setRetryKey((k) => k + 1);
+    prevStep();
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-lg mt-6 overflow-hidden">
@@ -83,12 +94,51 @@ function WizardInner({ walletAddress }: Props) {
         </div>
       </div>
 
-      {/* Step Content */}
+      {/* Step Content — each step is wrapped in its own ErrorBoundary (#522)
+          so a crash in one step doesn't take down the whole wizard. Retry
+          navigates back to the previous step (or, on step 1 where there is
+          none, simply remounts the step for another attempt). */}
       <div className="p-6">
-        {step === 1 && <StepCollateral walletAddress={walletAddress} />}
-        {step === 2 && <StepAmount />}
-        {step === 3 && <StepReview />}
-        {step === 4 && <StepConfirm walletAddress={walletAddress} />}
+        {step === 1 && (
+          <ErrorBoundary
+            key={`collateral-${retryKey}`}
+            section="Collateral"
+            onRetry={handleStepRetry}
+            retryLabel="↻ Try again"
+          >
+            <StepCollateral walletAddress={walletAddress} />
+          </ErrorBoundary>
+        )}
+        {step === 2 && (
+          <ErrorBoundary
+            key={`amount-${retryKey}`}
+            section="Amount"
+            onRetry={handleStepRetry}
+            retryLabel="← Back to previous step"
+          >
+            <StepAmount />
+          </ErrorBoundary>
+        )}
+        {step === 3 && (
+          <ErrorBoundary
+            key={`review-${retryKey}`}
+            section="Review"
+            onRetry={handleStepRetry}
+            retryLabel="← Back to previous step"
+          >
+            <StepReview />
+          </ErrorBoundary>
+        )}
+        {step === 4 && (
+          <ErrorBoundary
+            key={`confirm-${retryKey}`}
+            section="Confirm"
+            onRetry={handleStepRetry}
+            retryLabel="← Back to previous step"
+          >
+            <StepConfirm walletAddress={walletAddress} />
+          </ErrorBoundary>
+        )}
       </div>
     </div>
   );
@@ -96,7 +146,7 @@ function WizardInner({ walletAddress }: Props) {
 
 export default function LoanWizard({ walletAddress }: Props) {
   return (
-    <LoanWizardProvider>
+    <LoanWizardProvider walletAddress={walletAddress}>
       <WizardInner walletAddress={walletAddress} />
     </LoanWizardProvider>
   );

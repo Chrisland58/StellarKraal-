@@ -5,6 +5,15 @@ interface Props {
   children: ReactNode;
   /** Shown above the generic message — e.g. "Dashboard" */
   section?: string;
+  /**
+   * When provided, the primary action becomes a retry button that calls
+   * this instead of reloading the whole page — e.g. navigate a multi-step
+   * flow back to its previous step (#522) — and the boundary clears its
+   * own error state so the retried content gets a fresh render.
+   */
+  onRetry?: () => void;
+  /** Label for the retry button. Defaults to "Try again". Ignored without onRetry. */
+  retryLabel?: string;
 }
 
 interface State {
@@ -24,11 +33,17 @@ export default class ErrorBoundary extends Component<Props, State> {
     }
   }
 
+  handleRetry = () => {
+    this.setState({ error: null });
+    this.props.onRetry?.();
+  };
+
   render() {
     const { error } = this.state;
     if (!error) return this.props.children;
 
     const section = this.props.section ? `${this.props.section} — ` : "";
+    const { onRetry, retryLabel } = this.props;
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[200px] p-8 text-center">
@@ -40,12 +55,21 @@ export default class ErrorBoundary extends Component<Props, State> {
           An unexpected error occurred. Please reload or report the issue.
         </p>
         <div className="flex gap-3 flex-wrap justify-center">
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-gold text-brown font-semibold px-4 py-2 rounded-lg hover:bg-gold/80 transition"
-          >
-            Reload
-          </button>
+          {onRetry ? (
+            <button
+              onClick={this.handleRetry}
+              className="bg-gold text-brown font-semibold px-4 py-2 rounded-lg hover:bg-gold/80 transition"
+            >
+              {retryLabel ?? "Try again"}
+            </button>
+          ) : (
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gold text-brown font-semibold px-4 py-2 rounded-lg hover:bg-gold/80 transition"
+            >
+              Reload
+            </button>
+          )}
           <a
             href="/help/faq"
             className="border border-brown/30 text-brown px-4 py-2 rounded-lg hover:bg-brown/5 transition text-sm"

@@ -16,6 +16,16 @@ jest.mock('../lib/stellarUtils', () => ({
   formatStroops: (s: number) => `${s / 1e7} XLM`,
 }));
 
+jest.mock("next/link", () =>
+  function MockLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+    return React.createElement("a", { href, className }, children);
+  }
+);
+
+jest.mock("framer-motion", () => ({
+  useReducedMotion: jest.fn().mockReturnValue(false),
+}));
+
 const fetchMock = jest.fn();
 beforeEach(() => {
   fetchMock.mockReset();

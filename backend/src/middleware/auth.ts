@@ -16,6 +16,7 @@ import { Request, Response, NextFunction, Router } from 'express';
 import { createHmac, createHash, randomBytes } from 'crypto';
 import { Keypair } from '@stellar/stellar-sdk';
 import { config } from '../config';
+import { getProfile, updateProfile } from '../db/store';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,11 @@ authRouter.post('/login', (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Invalid wallet address or signature' });
   }
 
+  // First login auto-creates the user's profile record.
+  if (!getProfile(walletAddress)) {
+    updateProfile(walletAddress, {});
+  }
+
   const { accessToken, rawRefresh, expiresIn } = issueTokens(walletAddress);
   setRefreshCookie(res, rawRefresh);
   res.json({ accessToken, expiresIn });
@@ -289,6 +295,7 @@ const PROTECTED_GET_PATTERNS = [
   /^\/api\/loans\/[^/]+$/,
   /^\/api\/collateral$/,
   /^\/api\/v1\/loans\/summary$/,
+  /^\/api\/v1\/profile$/,
 ];
 
 /**

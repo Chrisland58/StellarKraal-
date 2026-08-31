@@ -1,3 +1,26 @@
+'use client';
+
+/**
+ * StatusBadge — #539
+ *
+ * Colours are sourced from design tokens (CSS custom properties via Tailwind
+ * semantic colour utilities) instead of hard-coded Tailwind palette classes.
+ * This ensures the badge colours stay consistent with the design system and
+ * flip correctly in dark mode.
+ *
+ * Token mapping
+ * ─────────────
+ * active      → success  (bg-color-success-subtle / text-color-success)
+ * repaid      → primary  (bg-color-primary/10     / text-color-primary)
+ * defaulted   → warning  (bg-color-warning-subtle / text-color-warning)
+ * liquidated  → danger   (bg-color-danger-subtle  / text-color-danger)
+ * available   → success  (same as active)
+ * pledged     → secondary(bg-color-secondary/15   / text-color-secondary)
+ *
+ * All token colours pass WCAG AA (≥ 4.5:1) for normal text on both
+ * light and dark backgrounds — verified in docs/guides/design-tokens.md.
+ */
+
 import React from 'react';
 
 export type LoanStatus = 'active' | 'repaid' | 'defaulted' | 'liquidated';
@@ -6,7 +29,7 @@ export type BadgeStatus = LoanStatus | CollateralStatus;
 
 interface Config {
   label: string;
-  /** Tailwind classes — all combos verified ≥ 4.5:1 WCAG AA contrast */
+  /** Tailwind semantic-token classes — theme-safe, WCAG AA compliant */
   classes: string;
   icon: string;
   ariaLabel: string;
@@ -15,37 +38,43 @@ interface Config {
 const STATUS_CONFIG: Record<BadgeStatus, Config> = {
   active: {
     label: 'Active',
-    classes: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    classes:
+      'bg-color-success-subtle text-color-success',
     icon: '●',
     ariaLabel: 'Status: Active',
   },
   repaid: {
     label: 'Repaid',
-    classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    classes:
+      'bg-color-primary/10 text-color-primary',
     icon: '✓',
     ariaLabel: 'Status: Repaid',
   },
   defaulted: {
     label: 'Defaulted',
-    classes: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    classes:
+      'bg-color-warning-subtle text-color-warning',
     icon: '⚠',
     ariaLabel: 'Status: Defaulted',
   },
   liquidated: {
     label: 'Liquidated',
-    classes: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    classes:
+      'bg-color-danger-subtle text-color-danger',
     icon: '✕',
     ariaLabel: 'Status: Liquidated',
   },
   available: {
     label: 'Available',
-    classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+    classes:
+      'bg-color-success-subtle text-color-success',
     icon: '◆',
     ariaLabel: 'Status: Available',
   },
   pledged: {
     label: 'Pledged',
-    classes: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    classes:
+      'bg-color-secondary/15 text-color-secondary',
     icon: '⬡',
     ariaLabel: 'Status: Pledged',
   },
@@ -60,7 +89,7 @@ export default function StatusBadge({ status }: Props) {
 
   if (!config) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-color-surface text-color-text-subtle">
         {status}
       </span>
     );

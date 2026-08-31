@@ -37,7 +37,51 @@ describe('StatusBadge', () => {
   test('icon is hidden from assistive technology', () => {
     render(<StatusBadge status="active" />);
     const badge = screen.getByRole('status');
-    // aria-label on the span provides the accessible name
     expect(badge).toHaveAttribute('aria-label', 'Status: Active');
+  });
+
+  // ── #539: Design token colour tests ─────────────────────────────────────────
+
+  describe('design token colour classes (#539)', () => {
+    test('active uses success token colours', () => {
+      render(<StatusBadge status="active" />);
+      const badge = screen.getByRole('status');
+      expect(badge.className).toContain('bg-color-success-subtle');
+      expect(badge.className).toContain('text-color-success');
+    });
+
+    test('repaid uses primary token colours', () => {
+      render(<StatusBadge status="repaid" />);
+      const badge = screen.getByRole('status');
+      expect(badge.className).toContain('bg-color-primary');
+      expect(badge.className).toContain('text-color-primary');
+    });
+
+    test('liquidated uses danger token colours', () => {
+      render(<StatusBadge status="liquidated" />);
+      const badge = screen.getByRole('status');
+      expect(badge.className).toContain('bg-color-danger-subtle');
+      expect(badge.className).toContain('text-color-danger');
+    });
+
+    test('defaulted uses warning token colours', () => {
+      render(<StatusBadge status="defaulted" />);
+      const badge = screen.getByRole('status');
+      expect(badge.className).toContain('bg-color-warning-subtle');
+      expect(badge.className).toContain('text-color-warning');
+    });
+
+    test('available uses success token colours', () => {
+      render(<StatusBadge status="available" />);
+      const badge = screen.getByRole('status');
+      expect(badge.className).toContain('bg-color-success-subtle');
+      expect(badge.className).toContain('text-color-success');
+    });
+
+    test('pledged uses secondary token colours', () => {
+      render(<StatusBadge status="pledged" />);
+      const badge = screen.getByRole('status');
+      expect(badge.className).toContain('text-color-secondary');
+    });
   });
 });

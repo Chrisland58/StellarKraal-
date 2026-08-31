@@ -15,20 +15,31 @@ const EMPTY: FilterState = { query: '', statuses: [], types: [], dateFrom: '', d
 /**
  * Hook that manages search/filter state with 300ms debounce and URL sync.
  * State is preserved on back navigation via URL query params.
+ *
+ * `filters.query` reflects the raw (immediate) input value for controlled input display.
+ * `debouncedQuery` is the debounced value that should drive actual filtering logic —
+ * it only updates 300 ms after the user stops typing.
  */
 export function useSearchFilter(debounceMs = 300) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const initialQuery = searchParams.get('q') ?? '';
+
   // Initialise from URL
   const [filters, setFilters] = useState<FilterState>(() => ({
-    query: searchParams.get('q') ?? '',
+    query: initialQuery,
     statuses: searchParams.getAll('status'),
     types: searchParams.getAll('type'),
     dateFrom: searchParams.get('dateFrom') ?? '',
     dateTo: searchParams.get('dateTo') ?? '',
   }));
+
+  // Separate state for the debounced query value used for actual filtering.
+  // This only updates after `debounceMs` ms of inactivity.
+  const [debouncedQuery, setDebouncedQuery] = useState<string>(initialQuery);
+  const queryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,9 +72,14 @@ export function useSearchFilter(debounceMs = 300) {
     (query: string) => {
       const next = { ...filters, query };
       setFilters(next);
+      // Debounce the value used for actual filtering
+      if (queryDebounceRef.current) clearTimeout(queryDebounceRef.current);
+      queryDebounceRef.current = setTimeout(() => {
+        setDebouncedQuery(query);
+      }, debounceMs);
       syncUrl(next, false);
     },
-    [filters, syncUrl]
+    [filters, syncUrl, debounceMs]
   );
 
   const toggleStatus = useCallback(
@@ -114,6 +130,8 @@ export function useSearchFilter(debounceMs = 300) {
 
   const clearAll = useCallback(() => {
     setFilters(EMPTY);
+    if (queryDebounceRef.current) clearTimeout(queryDebounceRef.current);
+    setDebouncedQuery('');
     syncUrl(EMPTY, true);
   }, [syncUrl]);
 
@@ -121,6 +139,7 @@ export function useSearchFilter(debounceMs = 300) {
   useEffect(
     () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (queryDebounceRef.current) clearTimeout(queryDebounceRef.current);
     },
     []
   );
@@ -134,6 +153,7 @@ export function useSearchFilter(debounceMs = 300) {
 
   return {
     filters,
+    debouncedQuery,
     setQuery,
     toggleStatus,
     toggleType,

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import PageTransition from '@/components/PageTransition';
 import Card from '@/components/Card';
@@ -7,6 +7,7 @@ import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
 import MoneyAmount from '@/components/MoneyAmount';
 import { useWallet } from '@/hooks/useWallet';
+import { useToast } from '@/components/toast';
 
 interface CollateralRecord {
   id: string;
@@ -27,11 +28,23 @@ interface LoanRecord {
 
 interface BorrowerProfile {
   wallet: string;
+  display_name?: string;
   collateral: CollateralRecord[];
   loans: LoanRecord[];
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const DISPLAY_NAME_MIN = 2;
+const DISPLAY_NAME_MAX = 40;
+
+export function buildReferralUrl(walletAddress: string): string {
+  const base =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://stellarkraal.example.com';
+  return `${base}/register?ref=${walletAddress}`;
+}
 
 function SkeletonRow() {
   return (
@@ -45,11 +58,175 @@ function SkeletonRow() {
   );
 }
 
+/** Inline display-name editor */
+function DisplayNameField({
+  walletAddress,
+  initialName,
+  onSaved,
+}: {
+  walletAddress: string;
+  initialName: string;
+  onSaved: (name: string) => void;
+}) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(initialName);
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  function validate(value: string): string | null {
+    const trimmed = value.trim();
+    if (trimmed.length < DISPLAY_NAME_MIN) {
+      return `Name must be at least ${DISPLAY_NAME_MIN} characters.`;
+    }
+    if (trimmed.length > DISPLAY_NAME_MAX) {
+      return `Name must be at most ${DISPLAY_NAME_MAX} characters.`;
+    }
+    return null;
+  }
+
+  function handleEdit() {
+    setDraft(initialName);
+    setValidationError(null);
+    setEditing(true);
+  }
+
+  function handleCancel() {
+    setEditing(false);
+    setDraft(initialName);
+    setValidationError(null);
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setDraft(e.target.value);
+    if (validationError) {
+      setValidationError(validate(e.target.value));
+    }
+  }
+
+  async function handleSave() {
+    const err = validate(draft);
+    if (err) {
+      setValidationError(err);
+      inputRef.current?.focus();
+      return;
+    }
+
+    const trimmed = draft.trim();
+
+    // Optimistic update
+    onSaved(trimmed);
+    setEditing(false);
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/api/v1/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: walletAddress, display_name: trimmed }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Server error ${res.status}`);
+      }
+      toast.success('Display name saved successfully!');
+    } catch (e: unknown) {
+      // Rollback optimistic update
+      onSaved(initialName);
+      toast.error(
+        e instanceof Error ? e.message : 'Failed to save display name. Please try again.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void handleSave();
+    }
+    if (e.key === 'Escape') {
+      handleCancel();
+    }
+  }
+
+  if (editing) {
+    return (
+      <div>
+        <dt className="text-brown-500 mb-1">Display Name</dt>
+        <dd className="flex items-center gap-2 flex-wrap">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            maxLength={DISPLAY_NAME_MAX + 1}
+            aria-label="Display name"
+            aria-describedby={validationError ? 'display-name-error' : undefined}
+            aria-invalid={validationError ? 'true' : 'false'}
+            className="rounded-lg border border-brown/30 px-3 py-1.5 text-sm text-brown-700 dark:bg-[#2A1A08] dark:text-cream focus:outline-none focus:ring-2 focus:ring-gold"
+          />
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="text-xs font-semibold bg-gold text-brown rounded px-3 py-1.5 hover:bg-gold/80 transition disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={saving}
+            className="text-xs font-medium text-brown-500 hover:text-brown-700 underline transition disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          {validationError && (
+            <p id="display-name-error" role="alert" className="w-full text-xs text-red-600 mt-0.5">
+              {validationError}
+            </p>
+          )}
+        </dd>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <dt className="text-brown-500 mb-1">Display Name</dt>
+      <dd className="flex items-center gap-2">
+        <span className="text-brown-700 dark:text-cream font-medium">
+          {initialName || <span className="text-brown-400 italic">Not set</span>}
+        </span>
+        <button
+          onClick={handleEdit}
+          aria-label="Edit display name"
+          className="text-xs font-medium text-gold hover:text-gold/80 underline transition"
+        >
+          Edit
+        </button>
+      </dd>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { address, freighterInstalled, connecting, connect } = useWallet();
   const [profile, setProfile] = useState<BorrowerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!address) return;
@@ -60,10 +237,20 @@ export default function ProfilePage() {
         if (!r.ok) throw new Error('Failed to load profile');
         return r.json();
       })
-      .then(setProfile)
+      .then((data: BorrowerProfile) => {
+        setProfile(data);
+        setDisplayName(data.display_name ?? '');
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [address]);
+
+  async function handleCopy() {
+    if (!address) return;
+    await navigator.clipboard.writeText(buildReferralUrl(address));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   if (!address) {
     return (
@@ -101,6 +288,8 @@ export default function ProfilePage() {
     );
   }
 
+  const referralUrl = buildReferralUrl(address);
+
   return (
     <PageTransition>
       <main className="max-w-4xl mx-auto px-4 py-10 space-y-8">
@@ -113,7 +302,28 @@ export default function ProfilePage() {
               <dt className="text-brown-500 mb-1">Address</dt>
               <dd className="font-mono break-all text-brown-700">{address}</dd>
             </div>
+            <DisplayNameField
+              walletAddress={address}
+              initialName={displayName}
+              onSaved={setDisplayName}
+            />
           </dl>
+        </Card>
+
+        {/* Referral Section */}
+        <Card header={<h2 className="text-lg font-semibold text-brown-700">Referral</h2>}>
+          <p className="text-sm text-brown-600 mb-3">
+            Share your referral link to invite others to StellarKraal.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="font-mono text-sm text-brown-700 break-all">{referralUrl}</span>
+            <button
+              onClick={() => void handleCopy()}
+              className="text-sm font-semibold bg-gold text-brown rounded px-3 py-1.5 hover:bg-gold/80 transition shrink-0"
+            >
+              {copied ? 'Copied!' : 'Copy Invite Link'}
+            </button>
+          </div>
         </Card>
 
         {error && (

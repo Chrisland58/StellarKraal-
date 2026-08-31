@@ -69,10 +69,73 @@ describe("useKeyboardShortcuts", () => {
     document.body.removeChild(dialog);
   });
 
+  it("calls action on Shift+C for wallet connect shortcut", () => {
+    action = jest.fn();
+    shortcuts = [{ key: "C", hint: "Shift+C", label: "Connect wallet", action }];
+    renderHook(() => useKeyboardShortcuts(shortcuts));
+    key("C", { shiftKey: true });
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Shift+C when an input is focused", () => {
+    action = jest.fn();
+    shortcuts = [{ key: "C", hint: "Shift+C", label: "Connect wallet", action }];
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    renderHook(() => useKeyboardShortcuts(shortcuts));
+    key("C", { shiftKey: true });
+    expect(action).not.toHaveBeenCalled();
+
+    document.body.removeChild(input);
+  });
+
   it("removes listener on unmount", () => {
     const { unmount } = renderHook(() => useKeyboardShortcuts(shortcuts));
     unmount();
     key("b");
     expect(action).not.toHaveBeenCalled();
+  });
+
+  // ── Shift+C (wallet connect shortcut) ─────────────────────────────────────
+
+  it("calls action on Shift+C (shift shortcut)", () => {
+    const shiftAction = jest.fn();
+    const shiftShortcuts: Shortcut[] = [
+      { key: "C", shift: true, hint: "Shift+C", label: "Connect wallet", action: shiftAction },
+    ];
+    renderHook(() => useKeyboardShortcuts(shiftShortcuts));
+    // Browser reports key='C' (uppercase) when Shift is held
+    key("C", { shiftKey: true });
+    expect(shiftAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call shift shortcut without shiftKey", () => {
+    const shiftAction = jest.fn();
+    const shiftShortcuts: Shortcut[] = [
+      { key: "C", shift: true, hint: "Shift+C", label: "Connect wallet", action: shiftAction },
+    ];
+    renderHook(() => useKeyboardShortcuts(shiftShortcuts));
+    // Press 'C' without Shift — should not trigger the shift-guarded shortcut
+    key("C", { shiftKey: false });
+    expect(shiftAction).not.toHaveBeenCalled();
+  });
+
+  it("does not call shift shortcut when focus is in input", () => {
+    const shiftAction = jest.fn();
+    const shiftShortcuts: Shortcut[] = [
+      { key: "C", shift: true, hint: "Shift+C", label: "Connect wallet", action: shiftAction },
+    ];
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    renderHook(() => useKeyboardShortcuts(shiftShortcuts));
+    key("C", { shiftKey: true });
+    expect(shiftAction).not.toHaveBeenCalled();
+
+    document.body.removeChild(input);
   });
 });

@@ -6,8 +6,10 @@ import { colors } from '@/lib/design-tokens';
 import Spinner from '@/components/Spinner';
 import { useToast } from '@/components/toast';
 import { Input, Select, ErrorSummary, toSummaryErrors } from '@/components/ui';
+import FieldTooltip from '@/components/FieldTooltip';
 import { useFetchWithRateLimit } from '@/hooks/useFetchWithRateLimit';
 import { useNetworkMismatch } from '@/hooks/useNetworkMismatch';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface Props {
   walletAddress: string;
@@ -73,6 +75,7 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
   const toast = useToast();
   const { retryCountdown, isRateLimited, fetchWithLimit } = useFetchWithRateLimit();
   const networkMismatch = useNetworkMismatch(walletAddress);
+  const { isOnline } = useNetworkStatus();
 
   const collateralErrors = {
     count: validateCount(count),
@@ -159,7 +162,7 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
         network: process.env.NEXT_PUBLIC_NETWORK || 'TESTNET',
       });
       const result = await submitSignedXdr(signedTxXdr);
-      toast.success(`Loan disbursed! Loan ID: ${result}`);
+      setSuccessLoanId(String(result));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Loan request failed');
     } finally {
@@ -167,14 +170,35 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
     }
   }
 
-  function handleOverlayDismiss() {
-    const redirect = successOverlay?.redirect;
-    setSuccessOverlay(null);
-    if (redirect) {
-      router.push(redirect);
-    } else {
-      if (step === "collateral") setStep("loan");
-    }
+  // ── Success state ────────────────────────────────────────────────────────────
+
+  if (successLoanId) {
+    return (
+      <div className="bg-white dark:bg-[#1C1008] rounded-2xl p-6 shadow border border-transparent dark:border-gold/20 mt-6">
+        <FormSuccess
+          title="Loan Requested!"
+          summary={
+            <div className="space-y-1 text-left">
+              <p>
+                <span className="font-medium">Loan ID:</span>{' '}
+                <span data-testid="success-loan-id">{successLoanId}</span>
+              </p>
+              <p>
+                <span className="font-medium">Collateral ID:</span>{' '}
+                {collateralId}
+              </p>
+              <p>
+                <span className="font-medium">Amount:</span>{' '}
+                {parseInt(loanAmount).toLocaleString()} stroops
+              </p>
+            </div>
+          }
+          onSubmitAnother={resetToStart}
+          viewDetailsHref="/loans"
+          viewDetailsLabel="View My Loans"
+        />
+      </div>
+    );
   }
 
   return (
@@ -212,20 +236,32 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
             error={submitted ? (collateralErrors.count ?? undefined) : undefined}
             disabled={loading}
           />
-          <Input
-            id={COLLATERAL_FIELD_IDS.appraisedValue}
-            label="Appraised Value (stroops)"
-            type="number"
-            placeholder="Total appraised value"
-            value={appraisedValue}
-            onChange={(e) => setAppraisedValue(e.target.value)}
-            error={submitted ? (collateralErrors.appraisedValue ?? undefined) : undefined}
-            disabled={loading}
-          />
+          {/* Appraised Value with tooltip — #1095 */}
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <label htmlFor={COLLATERAL_FIELD_IDS.appraisedValue} className="text-sm font-medium text-brown-700">
+                Appraised Value (stroops)
+              </label>
+              <FieldTooltip
+                content="Collateral value is the total worth of your animals as determined by the appraiser. Your maximum loan is 70% of this amount."
+                label="What is Appraised Value?"
+              />
+            </div>
+            <Input
+              id={COLLATERAL_FIELD_IDS.appraisedValue}
+              type="number"
+              placeholder="Total appraised value"
+              value={appraisedValue}
+              onChange={(e) => setAppraisedValue(e.target.value)}
+              error={submitted ? (collateralErrors.appraisedValue ?? undefined) : undefined}
+              disabled={loading}
+            />
+          </div>
           <button
             type="submit"
-            disabled={loading || isRateLimited || networkMismatch}
-            aria-disabled={loading || isRateLimited || networkMismatch}
+            disabled={loading || isRateLimited || networkMismatch || !isOnline}
+            aria-disabled={loading || isRateLimited || networkMismatch || !isOnline}
+            title={!isOnline ? "You're offline" : undefined}
             className={`w-full ${colors.primary.bg} ${colors.primary.text} py-2.5 rounded-xl font-semibold ${colors.primary.hover} transition ${colors.interactive.disabled} ${colors.interactive.focus} flex items-center justify-center gap-2`}
           >
             {loading ? (
@@ -235,6 +271,8 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
               </>
             ) : isRateLimited ? (
               `Retry in ${retryCountdown}s`
+            ) : !isOnline ? (
+              "You're offline"
             ) : (
               'Register & Continue'
             )}
@@ -275,8 +313,9 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
           />
           <button
             type="submit"
-            disabled={loading || isRateLimited || networkMismatch}
-            aria-disabled={loading || isRateLimited || networkMismatch}
+            disabled={loading || isRateLimited || networkMismatch || !isOnline}
+            aria-disabled={loading || isRateLimited || networkMismatch || !isOnline}
+            title={!isOnline ? "You're offline" : undefined}
             className={`w-full ${colors.secondary.bg} ${colors.secondary.text} py-2.5 rounded-xl font-semibold ${colors.secondary.hover} transition ${colors.interactive.disabled} ${colors.interactive.focus} flex items-center justify-center gap-2`}
           >
             {loading ? (
@@ -286,6 +325,8 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
               </>
             ) : isRateLimited ? (
               `Retry in ${retryCountdown}s`
+            ) : !isOnline ? (
+              "You're offline"
             ) : (
               'Request Loan'
             )}

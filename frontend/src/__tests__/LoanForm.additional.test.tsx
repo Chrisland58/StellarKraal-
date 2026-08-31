@@ -1,7 +1,7 @@
 /**
  * Additional component tests for LoanForm.
  * Covers field rendering, validation behavior, step navigation, and API submission.
- * Closes #361
+ * Closes #361, #820
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -19,6 +19,16 @@ jest.mock('../lib/stellarUtils', () => ({
   submitSignedXdr: (...args: unknown[]) => mockSubmitSignedXdr(...args),
   healthColor: () => '#16a34a',
   formatStroops: (s: number) => `${s / 1e7} XLM`,
+}));
+
+jest.mock("next/link", () =>
+  function MockLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+    return React.createElement("a", { href, className }, children);
+  }
+);
+
+jest.mock("framer-motion", () => ({
+  useReducedMotion: jest.fn().mockReturnValue(false),
 }));
 
 const fetchMock = jest.fn();
@@ -191,7 +201,9 @@ describe('LoanForm – API submission', () => {
     });
     fireEvent.click(screen.getByText('Request Loan'));
 
-    await waitFor(() => screen.getByText(/Loan disbursed! Loan ID: loan-42/));
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Loan Requested!" })).toBeInTheDocument()
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/loan/request'),

@@ -1,8 +1,10 @@
 'use client';
 import { useWizard } from '@/context/LoanWizardContext';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
+import FieldTooltip from '@/components/FieldTooltip';
 import { Input, Button } from '@/components/ui';
 import { formatXlmFromStroops } from '@/lib/formatMoney';
+import NumericInput from '@/components/NumericInput';
 
 const TERM_OPTIONS = [
   { days: '7', label: '7 days', rate: '2%' },
@@ -62,8 +64,14 @@ export default function StepAmount() {
 
       {/* Amount input */}
       <div>
+        {/* Label row: text + info tooltip */}
+        <div className="flex items-center mb-1">
+          <span className="text-sm font-medium text-brown">Loan Amount (stroops)</span>
+          <FieldTooltip hint={WIZARD_FIELD_TOOLTIPS.loanAmount} />
+        </div>
         <NumericInput
-          label="Loan Amount (stroops)"
+          label=""
+          aria-label="Loan Amount in stroops"
           placeholder="e.g. 5,000,000"
           value={loanAmount}
           onChange={(e) => setField('loanAmount', e.target.value)}
@@ -73,8 +81,13 @@ export default function StepAmount() {
         {loanAmount && maxLoan > 0 && (
           <div className="mt-2">
             <div className="flex justify-between text-xs text-brown-400 mb-1">
-              <span>
-                <GlossaryTerm termKey="ltv">LTV</GlossaryTerm>: {ltv}%
+              <span className="flex items-center gap-1">
+                <GlossaryTerm termKey="ltv">LTV</GlossaryTerm>
+                <FieldTooltip
+                  content="Loan-to-Value (LTV) is how much you borrow compared to your collateral's value. A lower LTV means less risk and more room before liquidation."
+                  label="What is LTV?"
+                />
+                : {ltv}%
               </span>
               <span>Max: 70%</span>
             </div>
@@ -96,7 +109,10 @@ export default function StepAmount() {
 
       {/* Loan term */}
       <div>
-        <label className="block text-sm font-medium text-brown mb-2">Loan Term</label>
+        <div className="flex items-center mb-2">
+          <label className="text-sm font-medium text-brown">Loan Term</label>
+          <FieldTooltip hint={WIZARD_FIELD_TOOLTIPS.loanTerm} />
+        </div>
         <div className="grid grid-cols-4 gap-2">
           {TERM_OPTIONS.map(({ days, label, rate }) => (
             <button
@@ -118,8 +134,12 @@ export default function StepAmount() {
       {/* Health factor preview */}
       {healthFactor && (
         <div className="bg-white border border-brown/20 rounded-xl px-4 py-3 flex justify-between items-center">
-          <span className="text-sm text-brown/70">
+          <span className="text-sm text-brown/70 flex items-center gap-1">
             <GlossaryTerm termKey="healthFactor">Est. Health Factor</GlossaryTerm>
+            <FieldTooltip
+              content="Health Factor measures how safe your loan is. Above 1.5 is safe (green), 1.0–1.5 needs watching (yellow), below 1.0 risks liquidation (red)."
+              label="What is Health Factor?"
+            />
           </span>
           <span className={`font-bold text-lg ${healthColor}`}>{healthFactor}</span>
         </div>

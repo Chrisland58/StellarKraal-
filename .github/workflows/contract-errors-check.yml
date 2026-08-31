@@ -1,0 +1,28 @@
+name: Validate Contract Errors Documentation
+
+on:
+  pull_request:
+    paths:
+      - "contracts/stellarkraal/src/lib.rs"
+      - "docs/api-error-codes.md"
+      - "backend/src/utils/sorobanErrors.ts"
+      - "scripts/validate-contract-errors-doc.js"
+      - ".github/workflows/contract-errors-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "contracts/stellarkraal/src/lib.rs"
+      - "docs/api-error-codes.md"
+      - "backend/src/utils/sorobanErrors.ts"
+
+jobs:
+  validate:
+    name: Check Contract Errors Doc Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/validate-contract-errors-doc.js

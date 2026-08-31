@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import HighlightText from '@/components/HighlightText';
 import PageTransition from '@/components/PageTransition';
+import ScrollToTopButton from '@/components/ScrollToTopButton';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import MoneyAmount from '@/components/MoneyAmount';
 
@@ -137,6 +138,7 @@ export default function CollateralListClient() {
           <CollateralListContent />
         </Suspense>
       </main>
+      <ScrollToTopButton />
     </PageTransition>
   );
 }

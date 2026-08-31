@@ -4,12 +4,21 @@ import Link from "next/link";
 import { colors } from "@/lib/design-tokens";
 import Card from "@/components/Card";
 import Spinner from "@/components/Spinner";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
+import { useToast } from "@/components/toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+interface Props {
+  walletAddress: string;
+  /** When provided the entire card becomes a Next.js Link to /dashboard/collateral/[id]. */
+  id?: string;
+}
+
 // walletAddress is accepted for API consistency but lookup uses a user-entered loan ID
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function CollateralCard(_props: { walletAddress: string }) {
+export default function CollateralCard({ id, walletAddress: _walletAddress }: Props) {
+  const toast = useToast();
   const [collateralId, setCollateralId] = useState('');
   const [data, setData] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
@@ -20,7 +29,12 @@ export default function CollateralCard(_props: { walletAddress: string }) {
     setError(null);
     setData(null);
     try {
-      const res = await fetch(`${API}/api/loan/${collateralId}`);
+      const res = await fetchWithRetry(`${API}/api/loan/${collateralId}`, {
+        toast: {
+          onRetry: (attempt) => toast.warning(`Retrying… (attempt ${attempt + 1})`),
+          onError: (message) => toast.error(message),
+        },
+      });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       setData(await res.json());
     } catch (e: unknown) {
@@ -30,7 +44,7 @@ export default function CollateralCard(_props: { walletAddress: string }) {
     }
   }
 
-  return (
+  const cardContent = (
     <Card
       className={[
         "mb-4",
@@ -43,6 +57,8 @@ export default function CollateralCard(_props: { walletAddress: string }) {
         "focus-within:ring-2 focus-within:ring-gold/50 focus-within:ring-offset-2",
         // Dark-mode hover tint
         "dark:hover:border-brown-500",
+        // Pointer cursor when the card is a link
+        id ? "cursor-pointer" : "",
       ].join(" ")}
       header={<h2 className={`text-xl font-semibold ${colors.text.primary}`}>Loan Lookup</h2>}
     >
@@ -56,9 +72,15 @@ export default function CollateralCard(_props: { walletAddress: string }) {
           placeholder="Loan ID"
           value={collateralId}
           onChange={(e) => setCollateralId(e.target.value)}
+          // Prevent the link navigation when typing inside the card
+          onClick={(e) => e.stopPropagation()}
         />
         <button
-          onClick={lookup}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void lookup();
+          }}
           disabled={loading}
           className={`${colors.primary.bg} ${colors.primary.text} px-4 py-2 rounded-lg ${colors.primary.hover} transition ${colors.interactive.disabled} ${colors.interactive.focus} flex items-center gap-2`}
         >
@@ -76,9 +98,15 @@ export default function CollateralCard(_props: { walletAddress: string }) {
         <Link
           href={`/collateral/${collateralId}`}
           className="mt-3 inline-block text-sm text-gold hover:underline"
+          onClick={(e) => e.stopPropagation()}
         >
           View collateral detail →
         </Link>
+      )}
+      {error && (
+        <p className="mt-2 text-sm text-red-600" role="alert">
+          {error}
+        </p>
       )}
       {data && (
         <pre
@@ -89,4 +117,24 @@ export default function CollateralCard(_props: { walletAddress: string }) {
       )}
     </Card>
   );
+
+  if (id) {
+    return (
+      <Link
+        href={`/dashboard/collateral/${id}`}
+        className={[
+          "block rounded-2xl",
+          // Pointer cursor
+          "cursor-pointer",
+          // Visible keyboard focus ring
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2",
+        ].join(" ")}
+        aria-label={`View collateral ${id}`}
+      >
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return cardContent;
 }
