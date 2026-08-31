@@ -57,7 +57,7 @@ export default function ShortcutsHelpOverlay({ shortcuts, onClose }: Props) {
               </li>
             ))}
           </ul>
-          <p className="text-xs text-brown/40 mt-4">Release <kbd className="font-mono">?</kbd> to dismiss this panel</p>
+          <p className="text-xs text-brown/40 mt-4">Press <kbd className="font-mono">?</kbd> to toggle this panel</p>
         </div>
       </div>
     </FocusTrap>
