@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCurrentPage } from '@/store/adminSlice';
 import { AppDispatch } from '@/store/store';
@@ -150,6 +150,10 @@ export default function ReportsPage() {
     }),
     []
   );
+
+  const [loans, setLoans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(setCurrentPage(pageData));

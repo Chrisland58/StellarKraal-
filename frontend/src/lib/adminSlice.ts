@@ -123,7 +123,7 @@ export async function fetchModerationQueue(dispatch: Dispatch): Promise<void> {
 export async function fetchStatistics(dispatch: Dispatch): Promise<void> {
   dispatch({ type: "statistics/pending" });
   try {
-    const res = await fetch(`${API}/api/v1/admin/statistics`);
+    const res = await fetch(`${API}/api/v1/admin/stats`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     dispatch({ type: "statistics/fulfilled", payload: json });

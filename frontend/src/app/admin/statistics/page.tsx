@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCurrentPage } from '@/store/adminSlice';
 import { AppDispatch } from '@/store/store';
@@ -452,9 +452,75 @@ export default function StatisticsPage() {
     []
   );
 
+  const [stats, setStats] = useState<any>(null);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [collaterals, setCollaterals] = useState<Collateral[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     dispatch(setCurrentPage(pageData));
   }, [dispatch, pageData]);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    Promise.all([
+      fetch('/api/v1/admin/stats').then((r) => r.json()),
+      fetch('/api/v1/loans?pageSize=200').then((r) => r.json()),
+      fetch('/api/v1/collateral?pageSize=200').then((r) => r.json()),
+    ])
+      .then(([s, l, c]) => {
+        if (!mounted) return;
+        setStats(s);
+        setLoans(l.data || []);
+        setCollaterals(c.data || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [dispatch]);
+
+  const dailyOriginations = useMemo(() => {
+    const days: Record<string, number> = {};
+    const now = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      days[d.toISOString().split('T')[0]] = 0;
+    }
+    loans.forEach((l) => {
+      const date = l.createdAt || l.created_at || '';
+      if (date) days[date.split('T')[0]] = (days[date.split('T')[0]] || 0) + 1;
+    });
+    return Object.values(days);
+  }, [loans]);
+
+  const statusDistribution = useMemo(() => {
+    const map: Record<string, number> = {};
+    loans.forEach((l) => {
+      map[l.status] = (map[l.status] || 0) + 1;
+    });
+    return [
+      { label: 'Active', value: map['active'] || 0 },
+      { label: 'Repaid', value: map['repaid'] || 0 },
+      { label: 'Liquidated', value: map['liquidated'] || 0 },
+    ];
+  }, [loans]);
+
+  const collateralByAnimal = useMemo(() => {
+    const map: Record<string, number> = {};
+    collaterals.forEach((c) => {
+      map[c.animal_type] = (map[c.animal_type] || 0) + (c.appraised_value || 0);
+    });
+    return Object.entries(map).map(([label, value]) => ({ label, value: Math.round(value / 1e7) }));
+  }, [collaterals]);
+
+  const pieColors = ['#dc2626', '#16a34a', '#2563eb', '#ca8a04', '#9333ea'];
 
   return (
     <AdminLayout>

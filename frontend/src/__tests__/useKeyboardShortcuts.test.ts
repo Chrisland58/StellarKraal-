@@ -69,6 +69,28 @@ describe("useKeyboardShortcuts", () => {
     document.body.removeChild(dialog);
   });
 
+  it("calls action on Shift+C for wallet connect shortcut", () => {
+    action = jest.fn();
+    shortcuts = [{ key: "C", hint: "Shift+C", label: "Connect wallet", action }];
+    renderHook(() => useKeyboardShortcuts(shortcuts));
+    key("C", { shiftKey: true });
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Shift+C when an input is focused", () => {
+    action = jest.fn();
+    shortcuts = [{ key: "C", hint: "Shift+C", label: "Connect wallet", action }];
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    renderHook(() => useKeyboardShortcuts(shortcuts));
+    key("C", { shiftKey: true });
+    expect(action).not.toHaveBeenCalled();
+
+    document.body.removeChild(input);
+  });
+
   it("removes listener on unmount", () => {
     const { unmount } = renderHook(() => useKeyboardShortcuts(shortcuts));
     unmount();

@@ -28,6 +28,13 @@ interface Props {
   walletAddress: string;
 }
 
+interface FeeEstimate {
+  principal: number;
+  originationFee: number;
+  totalAmount: number;
+  interestRate: number;
+}
+
 export default function StepConfirm({ walletAddress }: Props) {
   const {
     animalType,
@@ -43,6 +50,9 @@ export default function StepConfirm({ walletAddress }: Props) {
   } = useWizard();
 
   const [loanId, setLoanId] = useState<string | null>(null);
+  const [feeEstimate, setFeeEstimate] = useState<FeeEstimate | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeError, setFeeError] = useState<string | null>(null);
   const submitButton = useButtonState();
 
   // ── Fee estimation state ──────────────────────────────────────────────────
@@ -125,7 +135,6 @@ export default function StepConfirm({ walletAddress }: Props) {
       });
       const result = await submitSignedXdr(signedTxXdr);
       setLoanId(String(result));
-      // New loan created — drop cached loan lists so they revalidate.
       invalidateLoans();
       // Loan is submitted; stop offering to restore this now-completed
       // draft on a future visit (#523). The in-memory values stay put so
@@ -253,6 +262,14 @@ export default function StepConfirm({ walletAddress }: Props) {
             <p className="font-semibold text-brown">{loanTermDays}d</p>
           </div>
           <div>
+            <p className="text-xs text-brown/50">Network Fee</p>
+            {feeLoading ? (
+              <p className="font-semibold text-brown">...</p>
+            ) : feeError ? (
+              <p className="font-semibold text-red-600">Unable to estimate fee</p>
+            ) : (
+              <p className="font-semibold text-brown">{xlmFee} XLM</p>
+            )}
             <p className="text-xs text-brown/50">Fee</p>
             <p className="font-semibold text-brown">{formatXlmFromStroops(fee)}</p>
           </div>
@@ -261,6 +278,12 @@ export default function StepConfirm({ walletAddress }: Props) {
             <p className="font-semibold text-brown">{formatXlmFromStroops(totalRepay)}</p>
           </div>
         </div>
+
+        {feeWarning && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            ⚠️ Estimated fee exceeds 0.1 XLM. Review before submitting.
+          </div>
+        )}
       </div>
 
       {/* ── Estimated network fee ─────────────────────────────────────────── */}
@@ -338,6 +361,7 @@ export default function StepConfirm({ walletAddress }: Props) {
           className="flex-[2]"
           onClick={handleSubmit}
           state={submitButton.state}
+          disabled={!!feeError}
         >
           🚀 Submit Loan Request
         </Button>
