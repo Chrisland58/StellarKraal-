@@ -152,6 +152,13 @@ export default function DashboardClient() {
     setActiveTab(TABS[nextIndex].id);
   };
 
+  // Fetch loans to check for at-risk health factors
+  const { loans } = useLoans({ refreshInterval: 60_000 });
+  const loansWithHealth = loans as unknown as LoanWithHealth[];
+
+  const { shouldShow: showLiquidationWarning, atRiskLoans, dismiss: dismissWarning } =
+    useLiquidationWarning(loansWithHealth);
+
   function handleProceedToRepay(nextLoanId: string, _nextAmount: string) {
     setLoanId(nextLoanId);
     setActiveTab("loans");
