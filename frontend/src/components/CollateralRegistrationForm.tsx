@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { submitVariants } from '@/lib/animations';
 import { Input, Select, Button, ErrorSummary, toSummaryErrors } from '@/components/ui';
 import { useToast } from '@/components/toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface Props {
   walletAddress: string;
@@ -59,6 +60,7 @@ const FIELD_IDS: Record<keyof FormErrors, string> = {
 export default function CollateralRegistrationForm({ walletAddress, onSuccess }: Props) {
   const reduced = useReducedMotion();
   const toast = useToast();
+  const { isOnline } = useNetworkStatus();
   const [formData, setFormData] = useState<FormData>({
     animalType: 'cattle',
     quantity: '',
@@ -76,7 +78,6 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   // Image upload state
@@ -463,13 +464,17 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
           variants={reduced ? undefined : submitVariants}
           animate={loading ? 'loading' : 'idle'}
           className="w-full bg-brown text-cream py-2.5 rounded-xl font-semibold hover:bg-brown/80 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          disabled={loading}
+          disabled={loading || !isOnline}
+          aria-disabled={loading || !isOnline}
+          title={!isOnline ? "You're offline" : undefined}
         >
           {loading ? (
             <>
               <Spinner />
               Processing…
             </>
+          ) : !isOnline ? (
+            "You're offline"
           ) : (
             'Register Collateral'
           )}

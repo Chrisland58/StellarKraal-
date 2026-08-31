@@ -4,6 +4,7 @@ import React, { useState, useCallback, useId } from 'react';
 import Card from '@/components/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/FormField';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,7 @@ export default function LiquidatorWhitelist({
   const [submitting, setSubmitting] = useState(false);
   const [removingAddress, setRemovingAddress] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { isOnline } = useNetworkStatus();
 
   const inputId = useId();
   const listId = useId();
@@ -72,9 +74,7 @@ export default function LiquidatorWhitelist({
         return;
       }
       if (!isValidStellarAddress(trimmed)) {
-        setFieldError(
-          'Enter a valid Stellar address (56 characters, starting with G or C).',
-        );
+        setFieldError('Enter a valid Stellar address (56 characters, starting with G or C).');
         return;
       }
       const duplicate = liquidators.some((l) => l.address === trimmed);
@@ -95,7 +95,7 @@ export default function LiquidatorWhitelist({
         setSubmitting(false);
       }
     },
-    [newAddress, liquidators, onAdd],
+    [newAddress, liquidators, onAdd]
   );
 
   const handleRemove = useCallback(
@@ -104,16 +104,14 @@ export default function LiquidatorWhitelist({
       setRemovingAddress(address);
       try {
         await onRemove(address);
-        setSuccessMessage(
-          `${address.slice(0, 8)}…${address.slice(-4)} removed from whitelist.`,
-        );
+        setSuccessMessage(`${address.slice(0, 8)}…${address.slice(-4)} removed from whitelist.`);
       } catch {
         /* errors surface via the parent's error prop */
       } finally {
         setRemovingAddress(null);
       }
     },
-    [onRemove],
+    [onRemove]
   );
 
   const isOpenMode = liquidators.length === 0;
@@ -138,7 +136,9 @@ export default function LiquidatorWhitelist({
               ].join(' ')}
               aria-live="polite"
             >
-              {isOpenMode ? 'Open liquidation (no restrictions)' : `${liquidators.length} approved liquidator${liquidators.length !== 1 ? 's' : ''}`}
+              {isOpenMode
+                ? 'Open liquidation (no restrictions)'
+                : `${liquidators.length} approved liquidator${liquidators.length !== 1 ? 's' : ''}`}
             </span>
           </div>
         }
@@ -172,12 +172,7 @@ export default function LiquidatorWhitelist({
         )}
 
         {/* Add liquidator form */}
-        <form
-          onSubmit={handleAdd}
-          aria-label="Add liquidator"
-          className="mb-8"
-          noValidate
-        >
+        <form onSubmit={handleAdd} aria-label="Add liquidator" className="mb-8" noValidate>
           <div className="flex gap-3 items-start flex-wrap sm:flex-nowrap">
             <div className="flex-1 min-w-0">
               <Input
@@ -203,10 +198,11 @@ export default function LiquidatorWhitelist({
                 type="submit"
                 variant="primary"
                 loading={submitting}
-                disabled={loading}
+                disabled={loading || !isOnline}
+                title={!isOnline ? "You're offline" : undefined}
                 aria-label="Add address to whitelist"
               >
-                {submitting ? 'Adding…' : 'Add'}
+                {!isOnline ? "You're offline" : submitting ? 'Adding…' : 'Add'}
               </Button>
             </div>
           </div>
