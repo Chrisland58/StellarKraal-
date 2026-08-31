@@ -39,6 +39,7 @@ export default function StepConfirm({ walletAddress }: Props) {
     setField,
     prevStep,
     reset,
+    clearSavedProgress,
   } = useWizard();
 
   const [loanId, setLoanId] = useState<string | null>(null);
@@ -126,6 +127,10 @@ export default function StepConfirm({ walletAddress }: Props) {
       setLoanId(String(result));
       // New loan created — drop cached loan lists so they revalidate.
       invalidateLoans();
+      // Loan is submitted; stop offering to restore this now-completed
+      // draft on a future visit (#523). The in-memory values stay put so
+      // the success screen below can still show what was submitted.
+      clearSavedProgress();
       submitButton.setSuccess();
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';

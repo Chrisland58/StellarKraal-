@@ -6,6 +6,12 @@ interface AutoSaveOptions<T> {
   enabled?: boolean;
   interval?: number;
   walletAddress?: string;
+  /**
+   * Saved data older than this (ms) is treated as if it were never saved:
+   * it's discarded from localStorage and neither `hasSavedData` nor
+   * `restoreSavedData()` will surface it. Omit for no expiry.
+   */
+  expiryMs?: number;
 }
 
 interface SavedData<T> {
@@ -26,6 +32,7 @@ export function useFormAutoSave<T extends Record<string, unknown>>({
   enabled = true,
   interval = 5000,
   walletAddress,
+  expiryMs,
 }: AutoSaveOptions<T>) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasSavedData, setHasSavedData] = useState(false);
@@ -41,14 +48,16 @@ export function useFormAutoSave<T extends Record<string, unknown>>({
     if (saved) {
       try {
         const parsed: SavedData<T> = JSON.parse(saved);
-        if (!walletAddress || parsed.walletAddress === walletAddress) {
+        if (isExpired(parsed, expiryMs)) {
+          localStorage.removeItem(storageKey);
+        } else if (!walletAddress || parsed.walletAddress === walletAddress) {
           setHasSavedData(true);
         }
       } catch {
         // Invalid saved data — ignore
       }
     }
-  }, [storageKey, walletAddress]);
+  }, [storageKey, walletAddress, expiryMs]);
 
   // Auto-save on interval
   useEffect(() => {
@@ -125,6 +134,11 @@ export function useFormAutoSave<T extends Record<string, unknown>>({
 
     try {
       const parsed: SavedData<T> = JSON.parse(saved);
+      if (isExpired(parsed, expiryMs)) {
+        localStorage.removeItem(storageKey);
+        setHasSavedData(false);
+        return null;
+      }
       if (walletAddress && parsed.walletAddress !== walletAddress) {
         return null;
       }

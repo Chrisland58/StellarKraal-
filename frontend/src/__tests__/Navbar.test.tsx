@@ -134,4 +134,30 @@ describe('Navbar', () => {
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
+
+  // #524: drawer closes when the overlay behind it is tapped
+  it('mobile menu closes when the overlay is clicked', async () => {
+    render(<Navbar />);
+    await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    expect(document.getElementById('mobile-menu')).toBeTruthy();
+
+    const overlay = document.querySelector('[aria-hidden="true"].fixed.inset-0');
+    expect(overlay).toBeTruthy();
+    await userEvent.click(overlay as Element);
+
+    expect(document.getElementById('mobile-menu')).toBeNull();
+  });
+
+  // #524: focus is trapped inside the open drawer for keyboard users
+  it('traps focus inside the open drawer', async () => {
+    render(<Navbar />);
+    await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    const drawer = document.getElementById('mobile-menu');
+    expect(drawer).toBeTruthy();
+    expect(drawer).toHaveAttribute('role', 'dialog');
+    expect(drawer).toHaveAttribute('aria-modal', 'true');
+
+    // Focus should be inside the drawer, not left on the page behind it
+    expect(drawer!.contains(document.activeElement)).toBe(true);
+  });
 });
