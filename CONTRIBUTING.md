@@ -80,6 +80,8 @@ yourself following [docs/guides/changelog.md](docs/guides/changelog.md).
 
 ## Development Setup
 
+> **New contributor?** Start with the **[Contributing Quickstart](docs/development/contributing-quickstart.md)** — it walks you through cloning, installing dependencies, running tests, and opening your first PR on a clean Ubuntu 22.04 or macOS install.
+
 ```bash
 # Clone
 git clone https://github.com/teslims2/StellarKraal-.git
@@ -194,6 +196,8 @@ Open an [Architecture Decision Record](docs/adr/) in `docs/adr/` whenever a cont
 
 Copy `docs/adr/template.md`, increment the number, fill in all sections, and add a row to the ADR
 table in `README.md`. Reference the ADR in your PR description.
+
+> **New to ADRs?** See **[docs/adr/template.md](docs/adr/template.md)** for a filled example and a step-by-step guide covering when to write an ADR, what to put in each section, and how the review process works.
 
 For non-breaking additions (new error codes, comment changes, test improvements) an ADR is not
 required, but a clear PR description is expected.

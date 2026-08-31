@@ -254,6 +254,8 @@ For anything not listed here, see the [full troubleshooting guide](docs/troubles
 
 This repository uses a documented contribution workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, PR template, and code review expectations.
 
+New contributors should start with the **[Contributing Quickstart](docs/development/contributing-quickstart.md)** — a step-by-step guide verified on Ubuntu 22.04 and macOS that covers prerequisites, cloning, running tests, and opening your first PR.
+
 ### Pull Request Checklist
 
 - [ ] Branch created from latest `main`
