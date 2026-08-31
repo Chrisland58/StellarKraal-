@@ -1,6 +1,7 @@
 'use client';
 import { useWizard } from '@/context/LoanWizardContext';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
+import FieldTooltip from '@/components/FieldTooltip';
 import { Input, Button } from '@/components/ui';
 import { formatXlmFromStroops } from '@/lib/formatMoney';
 
@@ -73,8 +74,13 @@ export default function StepAmount() {
         {loanAmount && maxLoan > 0 && (
           <div className="mt-2">
             <div className="flex justify-between text-xs text-brown-400 mb-1">
-              <span>
-                <GlossaryTerm termKey="ltv">LTV</GlossaryTerm>: {ltv}%
+              <span className="flex items-center gap-1">
+                <GlossaryTerm termKey="ltv">LTV</GlossaryTerm>
+                <FieldTooltip
+                  content="Loan-to-Value (LTV) is how much you borrow compared to your collateral's value. A lower LTV means less risk and more room before liquidation."
+                  label="What is LTV?"
+                />
+                : {ltv}%
               </span>
               <span>Max: 70%</span>
             </div>
@@ -118,8 +124,12 @@ export default function StepAmount() {
       {/* Health factor preview */}
       {healthFactor && (
         <div className="bg-white border border-brown/20 rounded-xl px-4 py-3 flex justify-between items-center">
-          <span className="text-sm text-brown/70">
+          <span className="text-sm text-brown/70 flex items-center gap-1">
             <GlossaryTerm termKey="healthFactor">Est. Health Factor</GlossaryTerm>
+            <FieldTooltip
+              content="Health Factor measures how safe your loan is. Above 1.5 is safe (green), 1.0–1.5 needs watching (yellow), below 1.0 risks liquidation (red)."
+              label="What is Health Factor?"
+            />
           </span>
           <span className={`font-bold text-lg ${healthColor}`}>{healthFactor}</span>
         </div>

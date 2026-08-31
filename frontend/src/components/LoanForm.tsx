@@ -6,6 +6,7 @@ import { colors } from '@/lib/design-tokens';
 import Spinner from '@/components/Spinner';
 import { useToast } from '@/components/toast';
 import { Input, Select, ErrorSummary, toSummaryErrors } from '@/components/ui';
+import FieldTooltip from '@/components/FieldTooltip';
 import { useFetchWithRateLimit } from '@/hooks/useFetchWithRateLimit';
 import { useNetworkMismatch } from '@/hooks/useNetworkMismatch';
 
@@ -195,16 +196,27 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
             error={submitted ? (collateralErrors.count ?? undefined) : undefined}
             disabled={loading}
           />
-          <Input
-            id={COLLATERAL_FIELD_IDS.appraisedValue}
-            label="Appraised Value (stroops)"
-            type="number"
-            placeholder="Total appraised value"
-            value={appraisedValue}
-            onChange={(e) => setAppraisedValue(e.target.value)}
-            error={submitted ? (collateralErrors.appraisedValue ?? undefined) : undefined}
-            disabled={loading}
-          />
+          {/* Appraised Value with tooltip — #1095 */}
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <label htmlFor={COLLATERAL_FIELD_IDS.appraisedValue} className="text-sm font-medium text-brown-700">
+                Appraised Value (stroops)
+              </label>
+              <FieldTooltip
+                content="Collateral value is the total worth of your animals as determined by the appraiser. Your maximum loan is 70% of this amount."
+                label="What is Appraised Value?"
+              />
+            </div>
+            <Input
+              id={COLLATERAL_FIELD_IDS.appraisedValue}
+              type="number"
+              placeholder="Total appraised value"
+              value={appraisedValue}
+              onChange={(e) => setAppraisedValue(e.target.value)}
+              error={submitted ? (collateralErrors.appraisedValue ?? undefined) : undefined}
+              disabled={loading}
+            />
+          </div>
           <button
             type="submit"
             disabled={loading || isRateLimited || networkMismatch}

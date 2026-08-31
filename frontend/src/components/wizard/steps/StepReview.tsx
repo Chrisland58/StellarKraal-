@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useWizard } from '@/context/LoanWizardContext';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
+import FieldTooltip from '@/components/FieldTooltip';
 import { Button } from '@/components/ui';
 import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 
@@ -107,11 +108,33 @@ export default function StepReview() {
       value: `${ANIMAL_EMOJI[animalType]} ${animalType.charAt(0).toUpperCase() + animalType.slice(1)}`,
     },
     { label: 'Animal Count', value: count },
-    { label: 'Appraised Value', value: `${parseInt(appraisedValue || '0').toLocaleString()} stroops` },
+    {
+      label: (
+        <span className="flex items-center gap-1">
+          Appraised Value
+          <FieldTooltip
+            content="Collateral value is the total worth of your animals as determined by the appraiser. Your maximum loan is 70% of this amount."
+            label="What is Collateral Value?"
+          />
+        </span>
+      ),
+      value: `${parseInt(appraisedValue || '0').toLocaleString()} stroops`,
+    },
     { label: <GlossaryTerm termKey="loanAmount">Loan Amount</GlossaryTerm>, value: `${principal.toLocaleString()} stroops` },
     { label: 'Loan Term', value: `${loanTermDays} days` },
     { label: <GlossaryTerm termKey="feeRate">Fee Rate</GlossaryTerm>, value: rate },
-    { label: 'Fee Amount', value: `${fee.toLocaleString()} stroops` },
+    {
+      label: (
+        <span className="flex items-center gap-1">
+          <GlossaryTerm termKey="feeRate">Fee Amount</GlossaryTerm>
+          <FieldTooltip
+            content="Origination fee is a one-time charge added to your loan when it's issued. It covers the cost of processing your loan application."
+            label="What is Origination Fee?"
+          />
+        </span>
+      ),
+      value: `${fee.toLocaleString()} stroops`,
+    },
     {
       label: (
         <span className="flex items-center">
