@@ -141,3 +141,25 @@ TRANSACTION_INTEGRATION_GUIDE.md
 DARK_MODE_AUDIT.md
 ACCESSIBILITY_IMPLEMENTATION.md
 STAGING.md
+
+# ── Jest coverage & test artifacts ────────────────────────────────────────────
+jest-coverage/
+jest_cache/
+.jest-cache/
+lcov-report/
+
+# ── OS / temp files ───────────────────────────────────────────────────────────
+*.DS_Store
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# ── Editor backup / swap files ────────────────────────────────────────────────
+*.orig
+*.bak
+*.backup
+
+# ── Vercel / Netlify deploy ───────────────────────────────────────────────────
+.vercel/
+.netlify/

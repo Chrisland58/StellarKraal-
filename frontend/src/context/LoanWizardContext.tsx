@@ -47,7 +47,7 @@ interface WizardCtx extends WizardState {
   clearSavedProgress: () => void;
 }
 
-function makeItem(overrides?: Partial<CollateralItem>): CollateralItem {
+export function makeItem(overrides?: Partial<CollateralItem>): CollateralItem {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     animalType: "cattle",

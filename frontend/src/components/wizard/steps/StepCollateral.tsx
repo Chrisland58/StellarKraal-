@@ -5,6 +5,8 @@ import { signTransaction } from "@/lib/freighterClient";
 import { submitSignedXdr } from "@/lib/stellarUtils";
 import { invalidateCollateral } from "@/lib/api";
 import Spinner from "@/components/Spinner";
+import { FieldTooltip } from "@/components/Tooltip";
+import { WIZARD_FIELD_TOOLTIPS } from "@/lib/wizardFieldTooltips";
 
 const ANIMAL_TYPES: { value: AnimalType; label: string; emoji: string }[] = [
   { value: "cattle", label: "Cattle", emoji: "🐄" },
@@ -60,7 +62,6 @@ export default function StepCollateral({ walletAddress }: Props) {
   // ── Pointer drag ─────────────────────────────────────────────────────────────
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>, index: number) {
-    // Only drag from the handle
     dragIndexRef.current = index;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -119,7 +120,6 @@ export default function StepCollateral({ walletAddress }: Props) {
         network: process.env.NEXT_PUBLIC_NETWORK || "TESTNET",
       });
       const collateralId = await submitSignedXdr(signedTxXdr);
-      // New collateral registered — drop cached collateral lists so they revalidate.
       invalidateCollateral();
       setField("collateralId", String(collateralId));
       nextStep();
@@ -161,7 +161,6 @@ export default function StepCollateral({ walletAddress }: Props) {
               className="cursor-grab active:cursor-grabbing mt-1 text-brown/30 hover:text-brown/60 select-none focus:outline-none focus:ring-2 focus:ring-gold rounded"
               title="Drag to reorder or use arrow keys"
             >
-              {/* Grip icon */}
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <circle cx="5" cy="4" r="1.5" /><circle cx="11" cy="4" r="1.5" />
                 <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />

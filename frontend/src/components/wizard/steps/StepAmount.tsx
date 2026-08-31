@@ -4,6 +4,7 @@ import { GlossaryTerm } from '@/components/GlossaryTerm';
 import FieldTooltip from '@/components/FieldTooltip';
 import { Input, Button } from '@/components/ui';
 import { formatXlmFromStroops } from '@/lib/formatMoney';
+import NumericInput from '@/components/NumericInput';
 
 const TERM_OPTIONS = [
   { days: '7', label: '7 days', rate: '2%' },
@@ -63,8 +64,14 @@ export default function StepAmount() {
 
       {/* Amount input */}
       <div>
+        {/* Label row: text + info tooltip */}
+        <div className="flex items-center mb-1">
+          <span className="text-sm font-medium text-brown">Loan Amount (stroops)</span>
+          <FieldTooltip hint={WIZARD_FIELD_TOOLTIPS.loanAmount} />
+        </div>
         <NumericInput
-          label="Loan Amount (stroops)"
+          label=""
+          aria-label="Loan Amount in stroops"
           placeholder="e.g. 5,000,000"
           value={loanAmount}
           onChange={(e) => setField('loanAmount', e.target.value)}
@@ -102,7 +109,10 @@ export default function StepAmount() {
 
       {/* Loan term */}
       <div>
-        <label className="block text-sm font-medium text-brown mb-2">Loan Term</label>
+        <div className="flex items-center mb-2">
+          <label className="text-sm font-medium text-brown">Loan Term</label>
+          <FieldTooltip hint={WIZARD_FIELD_TOOLTIPS.loanTerm} />
+        </div>
         <div className="grid grid-cols-4 gap-2">
           {TERM_OPTIONS.map(({ days, label, rate }) => (
             <button
