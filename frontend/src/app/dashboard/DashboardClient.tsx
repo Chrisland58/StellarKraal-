@@ -16,11 +16,14 @@ import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { useHealthFactor } from "@/hooks/useHealthFactor";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { Hero } from "@/components/Hero";
+import { useToast } from "@/components/toast";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function DashboardClient() {
   const router = useRouter();
+  const toast = useToast();
   const [wallet, setWallet] = useState<string | null>(null);
   const [loanId, setLoanId] = useState("");
   const [activeTab, setActiveTab] = useState<TabName>("overview");
@@ -37,14 +40,19 @@ export default function DashboardClient() {
       setHasCollateral(false);
       return;
     }
-    fetch(`${API}/api/collateral?owner=${wallet}`)
+    fetchWithRetry(`${API}/api/collateral?owner=${wallet}`, {
+      toast: {
+        onRetry: (attempt) => toast.warning(`Retrying… (attempt ${attempt + 1})`),
+        onError: (message) => toast.error(message),
+      },
+    })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((body) => {
         const items = Array.isArray(body?.data) ? body.data : [];
         setHasCollateral(items.length > 0);
       })
       .catch(() => setHasCollateral(false));
-  }, [wallet]);
+  }, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect if user has loan
   useEffect(() => {
@@ -52,14 +60,19 @@ export default function DashboardClient() {
       setHasLoan(false);
       return;
     }
-    fetch(`${API}/api/loans?borrower=${wallet}`)
+    fetchWithRetry(`${API}/api/loans?borrower=${wallet}`, {
+      toast: {
+        onRetry: (attempt) => toast.warning(`Retrying… (attempt ${attempt + 1})`),
+        onError: (message) => toast.error(message),
+      },
+    })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((body) => {
         const items = Array.isArray(body?.data) ? body.data : [];
         setHasLoan(items.length > 0);
       })
       .catch(() => setHasLoan(false));
-  }, [wallet]);
+  }, [wallet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Read hash from URL on mount and when it changes
   useEffect(() => {
