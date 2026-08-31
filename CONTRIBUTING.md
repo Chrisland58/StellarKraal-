@@ -257,5 +257,5 @@ Before approving a pull request, reviewers should confirm:
 ## Reporting Issues
 
 - **Bugs**: Open a [GitHub issue](https://github.com/teslims2/StellarKraal-/issues/new?template=bug_report.md).
-- **Security vulnerabilities**: Follow the responsible disclosure process in `SECURITY.md`.
+- **Security vulnerabilities**: Follow the responsible disclosure process in [SECURITY.md](../SECURITY.md).
 - **Feature requests**: Open an issue with the `enhancement` label.

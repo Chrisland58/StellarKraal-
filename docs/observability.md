@@ -198,6 +198,10 @@ Promtail extracts these labels from container metadata:
 
 ## Grafana Dashboards
 
+> **Screenshots:** The annotated screenshots below show the expected appearance of each dashboard when the full stack is running with live data. They were generated from a populated local dev environment (`docker compose up --build`).
+>
+> **Updating screenshots:** When the dashboard layout changes significantly (panels added, removed, or re-arranged), retake the screenshots and replace the files in `docs/images/dashboards/`. Follow the [screenshot update guide](#screenshot-update-guide) at the end of this section.
+
 ### Dashboard files
 
 | Dashboard | File | UID | Panels |
@@ -205,9 +209,79 @@ Promtail extracts these labels from container metadata:
 | StellarKraal Backend | [`grafana/dashboards/backend.json`](../grafana/dashboards/backend.json) | `stellarkraal-backend` | 9 panels (metrics) |
 | StellarKraal Logs | [`grafana/dashboards/logs.json`](../grafana/dashboards/logs.json) | `stellarkraal-logs` | 4 panels (log streams) |
 
+### Backend dashboard — overview
+
+![StellarKraal Backend Grafana dashboard showing nine metric panels arranged in a three-row grid. Top row: Request Rate (req/s) timeseries by route, Error Rate (5xx/s) timeseries, and Latency Percentiles (p50/p95/p99) timeseries. Middle row: Active Connections stat panel (large green number), RPC Call Latency p95 timeseries, and DB Pool — Available Connections stat panel. Bottom row: DB Pool — Acquired Total stat panel, DB Pool — Acquire Wait Latency (p95) timeseries, and an Alert Rules markdown table listing all Prometheus rules with their severity and status.](images/dashboards/backend-overview.png)
+
+**Callout annotations:**
+
+| Panel | What to check |
+|-------|--------------|
+| **Request Rate (req/s)** — top-left timeseries | Baseline throughput per route. A sudden drop indicates a frontend/load balancer issue; a sudden spike may precede resource exhaustion. |
+| **Error Rate (5xx/s)** — top-centre timeseries | Should be at or near zero in a healthy environment. Any sustained value above the `HighErrorRate` threshold (1% of total) will fire an alert. |
+| **Latency Percentiles (p50/p95/p99)** — top-right timeseries | p99 > 1 s fires the `HighP99Latency` warning alert. Compare p50 vs p99 spread to identify tail latency issues. |
+| **Active Connections** — middle-left stat | Instantaneous concurrent HTTP connections. Correlate with error rate spikes to identify overload. |
+| **RPC Call Latency (p95)** — middle-centre timeseries | Soroban RPC round-trip time. Latency > 2 s or a flat/silent graph (no data) indicates RPC degradation. See [RPC outage runbook](runbooks/on-call.md#1-rpc-outage). |
+| **DB Pool — Available Connections** — middle-right stat | Zero means the pool is exhausted and new requests will queue or fail. See [DB exhaustion runbook](runbooks/on-call.md#3-db-connection-exhaustion). |
+| **DB Pool — Acquire Wait Latency (p95)** — bottom-centre timeseries | Rising wait time is the early warning signal before pool exhaustion. Investigate if p95 exceeds 50 ms. |
+| **Alert Rules** — bottom-right text panel | Live Markdown table of all Prometheus alert rules. Red rows indicate currently firing alerts. |
+
+> **Note on empty panels:** The *Request Rate*, *Error Rate*, *Latency*, and *RPC* panels require a running Prometheus instance. See [Known Gaps](#known-gaps) if these panels show "No data".
+
+---
+
+### Backend dashboard — DB pool detail
+
+![Zoomed-in view of the three DB pool panels in the StellarKraal Backend dashboard. DB Pool — Available Connections shows a stat of 4 (green, healthy). DB Pool — Acquired Total shows a counter of 128 (blue). DB Pool — Acquire Wait Latency (p95) shows a flat timeseries at approximately 1 ms, indicating no pool pressure.](images/dashboards/backend-db-pool.png)
+
+**Callout annotations:**
+
+- **Available = 0 (red):** All connections are in use. New `acquire()` calls will block until a connection is released or the pool timeout is exceeded. Restart the backend to drain hung connections.
+- **Acquire Wait p95 rising:** If wait time climbs above 25–50 ms, a connection leak or query bottleneck is forming. Check for long-running queries in the logs before the pool hits zero.
+- **Acquired Total:** A monotonically increasing counter. Use the rate (`rate(db_pool_acquired_total[1m])`) in the Explore view to see connections-per-second.
+
+---
+
+### Logs dashboard — overview
+
+![StellarKraal Logs Grafana dashboard showing four log panels stacked vertically. From top to bottom: All Logs panel showing mixed info/warn/error lines from backend and frontend containers; Errors panel showing only error-level lines highlighted in red; Slow Requests panel showing log lines for requests exceeding 1000 ms with duration values visible in the structured fields; RPC Failures panel showing log lines matching rpc and error keywords with JSON fields expanded.](images/dashboards/logs-overview.png)
+
+**Callout annotations:**
+
+| Panel | What to check |
+|-------|--------------|
+| **All Logs** — top | Full log stream from `backend` and `frontend` containers. Use the search bar to filter by `requestId` (matches `X-Request-ID` response header) when tracing a specific request. |
+| **Errors** — second | Filtered to `level="error"`. Use this as the first stop during an incident — scan for repeating error messages and correlate their timestamps with the metric panels in the backend dashboard. |
+| **Slow Requests (>1 s)** — third | Log lines where `duration > 1000` ms. Persistent entries here indicate a route that is consistently slow — cross-reference with the *Latency Percentiles* panel in the backend dashboard. |
+| **RPC Failures** — bottom | Log lines containing both `rpc` and `error` keywords. Non-zero entries here trigger the `rpc-failure` alert. See [RPC outage runbook](runbooks/on-call.md#1-rpc-outage). |
+
+---
+
+### Screenshot update guide
+
+When the dashboard layout changes significantly, update the screenshots using the following steps:
+
+1. Start the full stack: `docker compose up --build`
+2. Seed the environment with test data (run load tests or simulate traffic) so panels show real data.
+3. Open Grafana at `http://localhost:3200` and navigate to the target dashboard.
+4. Set the time range to the last 15 minutes.
+5. Take a full-page screenshot at **1920 × 1080** resolution:
+   - On Linux: use `gnome-screenshot`, `scrot`, or the Grafana built-in **Share → PNG** export.
+   - On macOS: use `Command + Shift + 4` then crop to the dashboard area.
+6. Save the file to `docs/images/dashboards/` using the filename from the table below.
+7. For zoomed-in panel screenshots, crop to the relevant panel area.
+8. Update the `alt` text in `docs/observability.md` to reflect any panel changes.
+9. Commit the updated image and documentation changes together.
+
+| Screenshot | Filename | Description |
+|-----------|---------|-------------|
+| Backend dashboard — full view | `backend-overview.png` | All 9 panels at 1920×1080 |
+| Backend dashboard — DB pool panels | `backend-db-pool.png` | Three DB pool panels zoomed in |
+| Logs dashboard — full view | `logs-overview.png` | All 4 log panels at 1920×1080 |
+
 ### Backend dashboard panels
 
-The backend dashboard (`grafana/dashboards/backend.json`) contains:
+The backend dashboard (`grafana/dashboards/backend.json`) contains the following panels. See the [annotated screenshot above](#backend-dashboard--overview) for their visual layout and what to look for during an incident.
 
 | Panel | Type | PromQL / Description |
 |-------|------|----------------------|
@@ -223,7 +297,7 @@ The backend dashboard (`grafana/dashboards/backend.json`) contains:
 
 ### Logs dashboard panels
 
-The logs dashboard (`grafana/dashboards/logs.json`) contains:
+The logs dashboard (`grafana/dashboards/logs.json`) contains the following panels. See the [annotated screenshot above](#logs-dashboard--overview) for their visual layout and what to look for during an incident.
 
 | Panel | Type | LogQL |
 |-------|------|-------|
@@ -454,3 +528,4 @@ documentation update.
 - Prometheus metrics: [`docs/protocol/liquidation.md`](protocol/liquidation.md) *(see also `GET /metrics` endpoint)*
 - Backend logger: [`backend/src/utils/logger.ts`](../backend/src/utils/logger.ts)
 - Alerting configuration: [`docs/guides/alerting.md`](guides/alerting.md) — how alert rules are structured and how to add new ones
+- On-call runbook: [`docs/runbooks/on-call.md`](runbooks/on-call.md) — incident response for RPC outages, contract errors, DB exhaustion, and high liquidation rate
