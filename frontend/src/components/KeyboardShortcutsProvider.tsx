@@ -2,6 +2,8 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useKeyboardShortcuts, Shortcut } from "@/hooks/useKeyboardShortcuts";
+import ShortcutsHelpModal from "@/components/ShortcutsHelpModal";
+import { useWallet } from "@/hooks/useWallet";
 import ShortcutsHelpOverlay from "@/components/ShortcutsHelpOverlay";
 
 /**

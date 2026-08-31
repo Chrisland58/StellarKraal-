@@ -1,11 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWizard } from '@/context/LoanWizardContext';
 import { useButtonState } from '@/hooks/useButtonState';
 import { signTransaction } from '@/lib/freighterClient';
 import { submitSignedXdr } from '@/lib/stellarUtils';
 import { invalidateLoans } from '@/lib/api';
 import { Button } from '@/components/ui';
+import Spinner from '@/components/Spinner';
+import XlmAmount from '@/components/XlmAmount';
+import { useCurrencySettings } from '@/hooks/useCurrencySettings';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 import { formatXlmFromStroops } from '@/lib/formatMoney';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -16,6 +20,9 @@ const TERM_RATES: Record<string, string> = {
   '90': '12%',
   '180': '20%',
 };
+
+/** XLM amount above which we show the high-fee amber warning. */
+const FEE_WARNING_THRESHOLD_XLM = 0.1;
 
 interface Props {
   walletAddress: string;
@@ -37,10 +44,65 @@ export default function StepConfirm({ walletAddress }: Props) {
   const [loanId, setLoanId] = useState<string | null>(null);
   const submitButton = useButtonState();
 
+  // ── Fee estimation state ──────────────────────────────────────────────────
+  const [feeXlm, setFeeXlm] = useState<number | null>(null);
+  const [feeLoading, setFeeLoading] = useState(true);
+  const [feeError, setFeeError] = useState<string | null>(null);
+
+  // Currency conversion helpers (used for inline fiat display alongside XLM)
+  const { enabled: currencyEnabled, currency } = useCurrencySettings();
+  const { convert } = useCurrencyConversion();
+
+  // Fetch fee estimate on mount (or whenever the loan parameters change)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function estimateFee() {
+      setFeeLoading(true);
+      setFeeError(null);
+      setFeeXlm(null);
+
+      try {
+        const res = await fetch(`${API}/api/v1/loans/estimate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collateral_id: parseInt(collateralId),
+            amount: parseInt(loanAmount || '0'),
+            term_days: parseInt(loanTermDays),
+          }),
+        });
+
+        if (!res.ok) throw new Error('Estimate request failed');
+        const data = await res.json();
+
+        if (!cancelled) {
+          setFeeXlm(typeof data.estimatedFee === 'number' ? data.estimatedFee : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setFeeError('Unable to estimate fee');
+        }
+      } finally {
+        if (!cancelled) {
+          setFeeLoading(false);
+        }
+      }
+    }
+
+    estimateFee();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [collateralId, loanAmount, loanTermDays]);
+
+  // ── Origination fee / repayment totals (existing logic) ──────────────────
   const rate = TERM_RATES[loanTermDays] || '5%';
   const fee = Math.floor((parseInt(loanAmount || '0') * parseFloat(rate)) / 100);
   const totalRepay = parseInt(loanAmount || '0') + fee;
 
+  // ── Submit handler (unchanged) ────────────────────────────────────────────
   async function handleSubmit() {
     submitButton.setLoading();
     setField('error', null);
@@ -72,6 +134,7 @@ export default function StepConfirm({ walletAddress }: Props) {
     }
   }
 
+  // ── Success state ─────────────────────────────────────────────────────────
   if (loanId) {
     return (
       <div className="space-y-6 text-center">
@@ -111,6 +174,18 @@ export default function StepConfirm({ walletAddress }: Props) {
     );
   }
 
+  // ── Helper: fiat conversion of the estimated fee ──────────────────────────
+  const fiatFee =
+    currencyEnabled && feeXlm !== null ? convert(feeXlm, currency) : null;
+
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    KES: 'KSh',
+    NGN: '₦',
+    GHS: 'GH₵',
+    USD: '$',
+  };
+
+  // ── Main form ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <div>
@@ -183,9 +258,55 @@ export default function StepConfirm({ walletAddress }: Props) {
         </div>
       </div>
 
+      {/* ── Estimated network fee ─────────────────────────────────────────── */}
+      <div className="bg-white border border-brown/20 rounded-xl px-4 py-3">
+        <p className="text-xs text-brown/50 uppercase tracking-wider font-medium mb-1">
+          Estimated network fee
+        </p>
+
+        {feeLoading && (
+          <div className="flex items-center gap-2 text-brown/60 text-sm" data-testid="fee-spinner">
+            <Spinner className="h-4 w-4" label="Fetching fee estimate" />
+            <span>Fetching fee estimate…</span>
+          </div>
+        )}
+
+        {!feeLoading && feeError && (
+          <p className="text-red-600 text-sm" data-testid="fee-error">
+            {feeError}
+          </p>
+        )}
+
+        {!feeLoading && feeXlm !== null && (
+          <p className="text-brown font-semibold text-sm" data-testid="fee-amount">
+            <XlmAmount xlm={feeXlm} />
+            {currencyEnabled && fiatFee !== null && (
+              <span className="text-brown/60 font-normal ml-1">
+                ({CURRENCY_SYMBOLS[currency] ?? ''}{fiatFee.toLocaleString(undefined, { maximumFractionDigits: 2 })})
+              </span>
+            )}
+          </p>
+        )}
+      </div>
+
+      {/* ── High-fee warning ─────────────────────────────────────────────── */}
+      {feeXlm !== null && feeXlm > FEE_WARNING_THRESHOLD_XLM && (
+        <div
+          className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3"
+          data-testid="fee-warning"
+          role="alert"
+        >
+          <span className="text-amber-500 text-lg" aria-hidden="true">⚠️</span>
+          <p className="text-amber-700 text-sm">
+            The estimated network fee is unusually high ({feeXlm} XLM). Please review before
+            submitting.
+          </p>
+        </div>
+      )}
+
       {/* Wallet note */}
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-        <span className="text-blue-500 text-lg">🔐</span>
+        <span className="text-blue-500 text-lg" aria-hidden="true">🔐</span>
         <p className="text-blue-700 text-sm">
           Clicking submit will open Freighter to sign the transaction. Make sure your wallet is
           unlocked.
