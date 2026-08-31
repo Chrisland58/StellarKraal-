@@ -17,6 +17,9 @@ A loan status indicating the health factor has fallen below the warning threshol
 
 ## B
 
+### Basis Points (bps)
+A unit equal to 0.01 %. Used throughout StellarKraal to represent thresholds and rates without floating-point ambiguity. For example, a liquidation threshold of 8000 bps means 80 %. See also [Liquidation Threshold](#liquidation-threshold).
+
 ### Borrower
 A user who pledges livestock as collateral and receives a loan against its appraised value. The borrower is responsible for repayment and monitoring their [Health Factor](#health-factor).
 
@@ -42,7 +45,18 @@ The unique identifier of the deployed Soroban smart contract on the Stellar netw
 ### Disbursement
 The transfer of loan funds from the protocol to the borrower's wallet, triggered when a loan request is confirmed on-chain. The disbursed amount equals the loan amount minus the [Origination Fee](#origination-fee).
 
+## E
+
+### ECS (Elastic Container Service)
+The AWS service used to run StellarKraal's backend and frontend containers. The backend runs as a Fargate task in the `stellarkraal-<env>` cluster. See also [Fargate](#fargate).
+
+### Event-Driven Architecture
+A design pattern where components communicate by emitting and consuming events rather than calling each other directly. The StellarKraal backend emits loan lifecycle events (e.g., `LoanActivated`, `LoanLiquidated`) via webhooks and the contract event listener. See also [ADR-010](adr/ADR-010-event-driven-architecture.md).
+
 ## F
+
+### Fargate
+AWS's serverless container runtime. StellarKraal's ECS tasks run on Fargate, meaning there are no EC2 instances to manage. The CPU and memory limits are set in the ECS task definition. See also [ECS](#ecs-elastic-container-service).
 
 ### Freighter
 A Stellar wallet browser extension that allows users to sign transactions and interact with Soroban contracts from the web frontend. See also [Wallet](#wallet).
@@ -61,6 +75,9 @@ The cost of borrowing funds, calculated using a jump-rate model with a kink. Bel
 An error thrown by the backend [Loan State Machine](protocol/loan-state-machine.md) when an invalid loan status transition is attempted (e.g., trying to move from `repaid` back to `active`).
 
 ## J
+
+### JWT (JSON Web Token)
+A signed token used to authenticate API requests to the StellarKraal backend. The backend issues a JWT after a successful login. Clients include it in the `Authorization: Bearer <token>` header on subsequent requests. Tokens expire and must be refreshed. See also [ADR-002](adr/ADR-002-jwt-auth.md).
 
 ### Jump-Rate Model
 An [interest rate](#interest-rate) model where the rate increases slowly up to a target utilization rate (the "kink"), then increases sharply beyond it. This incentivizes borrowers to maintain healthy utilization. See also [APR](#apr-annual-percentage-rate).
@@ -93,6 +110,11 @@ The maximum percentage of collateral value that can be borrowed. For example, a 
 ### Multi-Oracle Median
 A price feed mechanism that aggregates prices from multiple oracle sources and takes the median value. This reduces the impact of any single oracle failure or manipulation. See also [TWAP](#twap-time-weighted-average-price).
 
+## N
+
+### N+1 Query Problem
+A database performance issue where code fetches a list of N records and then issues one additional query per record instead of a single bulk query. This appears as a linear increase in response time as the dataset grows. See the [Performance Tuning Guide](performance-tuning.md) for how to detect and fix it.
+
 ## O
 
 ### Oracle
@@ -122,6 +144,9 @@ The Soroban JSON-RPC endpoint used by the backend to query contract state, submi
 
 ## S
 
+### SAC (Stellar Asset Contract)
+A Soroban smart contract that wraps a classic Stellar asset so it can be used within the Soroban contract environment. StellarKraal uses a SAC to represent the loan disbursement token on-chain. See also [Soroban](#soroban).
+
 ### Soroban
 Stellar's smart contract platform that runs WebAssembly (WASM) contracts. StellarKraal's loan lifecycle is managed by a Soroban contract written in Rust. See also [Contract ID](#contract-id).
 
@@ -143,11 +168,24 @@ The ratio of total outstanding loans to total available liquidity. In the jump-r
 
 ## W
 
+### WAL (Write-Ahead Log)
+A SQLite journal mode that improves read/write concurrency. With WAL enabled, readers do not block writers and writers do not block readers. StellarKraal enables WAL mode automatically during database migrations. Verify with `PRAGMA journal_mode;` — the expected result is `wal`. See also [Performance Tuning Guide](performance-tuning.md).
+
 ### Wallet
 A Stellar account used to hold funds and sign transactions. StellarKraal integrates with [Freighter](#freighter) for browser-based wallet access.
 
 ### Whitelist
 An access control mechanism that restricts which addresses can perform [Liquidation](#liquidation). When the liquidator whitelist is empty, the protocol operates in open mode (anyone can liquidate).
+
+## X
+
+### XDR (External Data Representation)
+The binary encoding format used by the Stellar network to serialize transactions and ledger entries. When the backend builds a loan transaction, it encodes it as XDR before sending it to the Soroban RPC endpoint. XDR serialization is one of the common CPU bottlenecks identified during profiling. See also [Soroban](#soroban), [RPC](#rpc-remote-procedure-call).
+
+## Z
+
+### Zero-Knowledge Proof (ZKP)
+Not currently used in StellarKraal, but referenced in ADR-009 as a possible future privacy mechanism for collateral appraisal values. Included here for contributors evaluating the API v2 design direction. See also [ADR-009](adr/ADR-009-api-v2-design.md).
 
 ---
 
