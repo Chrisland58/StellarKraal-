@@ -12,9 +12,30 @@ import { useNetworkMismatch } from "@/hooks/useNetworkMismatch";
 
 interface Props {
   walletAddress: string;
+  /** Pre-fill the loan ID field (e.g. from the calculator panel) */
+  initialLoanId?: string;
+  /** Pre-fill the amount field (stroops) */
+  initialAmount?: string;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+interface OutstandingBalance {
+  outstanding: number; // stroops
+  principal: number; // stroops
+}
+
+interface RepaymentPreview {
+  remaining_balance: number;
+  breakdown: {
+    principal: number;
+    interest: number;
+    fees: number;
+    remaining_balance: number;
+  };
+  fully_repaid: boolean;
+  projected_health_factor_bps: number | null;
+}
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 const inputCls =
   "w-full border border-brown/30 dark:border-gold/40 rounded-lg px-3 py-2 bg-white dark:bg-[#2A1A08] text-brown dark:text-cream placeholder:text-brown/40 dark:placeholder:text-cream/40 focus:outline-none focus:ring-2 focus:ring-gold dark:focus:ring-[#F5D060]";
@@ -48,23 +69,33 @@ export default function RepayPanel({ walletAddress }: Props) {
 
   async function repay() {
     setLoading(true);
+    setStatusMsg(null);
+    setOptimisticMsg('⏳ Repayment recorded — awaiting confirmation…');
     try {
+      const idempotencyKey =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       const res = await fetch(`${API}/api/loan/repay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
           borrower: walletAddress,
-          loan_id: parseInt(loanId),
-          amount: parseInt(amount),
+          loan_id: parseInt(loanId, 10),
+          amount: parseInt(amount, 10),
         }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Repayment failed");
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Repayment failed');
       }
       const { xdr } = await res.json();
       const { signedTxXdr } = await signTransaction(xdr, {
-        network: process.env.NEXT_PUBLIC_NETWORK || "TESTNET",
+        network: process.env.NEXT_PUBLIC_NETWORK || 'TESTNET',
       });
       await submitSignedXdr(signedTxXdr);
       // Loan state changed — drop cached loan lists so they revalidate.

@@ -3,22 +3,83 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import RepayPanel from "../components/RepayPanel";
 import { ToastProvider, ToastContainer } from "../components/toast";
 
-jest.mock("@stellar/freighter-api", () => ({
+jest.mock('@stellar/freighter-api', () => ({
   signTransaction: jest.fn(),
 }));
-jest.mock("../lib/stellarUtils", () => ({
+jest.mock('../lib/stellarUtils', () => ({
   submitSignedXdr: jest.fn(),
   healthColor: jest.fn(),
-  formatStroops: jest.fn(),
+  formatStroops: jest.fn((stroops: number) => `${stroops / 1e7} XLM`),
 }));
 
-import { signTransaction } from "@stellar/freighter-api";
-import { submitSignedXdr } from "../lib/stellarUtils";
+import { signTransaction } from '@stellar/freighter-api';
+import { submitSignedXdr } from '../lib/stellarUtils';
 
 const mockSign = signTransaction as jest.Mock;
 const mockSubmit = submitSignedXdr as jest.Mock;
 
-function renderPanel() {
+/** Typed global fetch accessor for mocking without triggering no-explicit-any */
+type GlobalWithFetch = typeof globalThis & { fetch: jest.Mock };
+
+function setGlobalFetch(fn: jest.Mock): void {
+  (globalThis as GlobalWithFetch).fetch = fn;
+}
+
+function getGlobalFetch(): jest.Mock {
+  return (globalThis as GlobalWithFetch).fetch;
+}
+
+/** Repayment-preview response stub */
+function makePreviewResponse() {
+  return {
+    ok: true,
+    json: async () => ({
+      breakdown: {
+        principal: 99,
+        interest: 0,
+        fees: 0,
+        remaining_balance: 99,
+      },
+      fully_repaid: false,
+      projected_health_factor_bps: 15000,
+    }),
+  };
+}
+
+/** POST /api/loan/repay success response stub */
+function makeRepayResponse() {
+  return {
+    ok: true,
+    json: async () => ({ xdr: 'test-xdr' }),
+  };
+}
+
+/**
+ * Route fetch calls by URL so tests are not brittle to call order.
+ * preview   → /api/loan/repayment-preview
+ * repay     → /api/loan/repay
+ */
+function makeFetchRouter(
+  options: {
+    repayResponse?: ReturnType<typeof makeRepayResponse> | { reject: Error };
+  } = {}
+): jest.Mock {
+  return jest.fn().mockImplementation((url: string) => {
+    if (url.includes('repayment-preview')) {
+      return Promise.resolve(makePreviewResponse());
+    }
+    if (url.includes('/repay')) {
+      const r = options.repayResponse;
+      if (r && 'reject' in r) {
+        return Promise.reject(r.reject);
+      }
+      return Promise.resolve(options.repayResponse ?? makeRepayResponse());
+    }
+    return Promise.reject(new Error(`Unmocked URL: ${url}`));
+  });
+}
+
+function renderPanel(props: { initialLoanId?: string; initialAmount?: string } = {}) {
   return render(
     <ToastProvider>
       <RepayPanel walletAddress="GTEST" />
@@ -105,5 +166,34 @@ describe("RepayPanel", () => {
 
     await waitFor(() => expect(loanIdInput.value).toBe(""));
     expect(amountInput.value).toBe("");
+  });
+
+  // ── Outstanding balance display ─────────────────────────────────────────
+
+  it('shows outstanding balance after loan ID is entered', async () => {
+    setGlobalFetch(makeFetchRouter());
+
+    render(
+      <ToastProvider>
+        <RepayPanel walletAddress="GTEST" initialLoanId="1" />
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId('outstanding-balance')).toBeTruthy());
+  });
+
+  it('shows skeleton (aria-hidden shimmer) while balance is loading', () => {
+    // Never resolve the preview — keeps loading state permanently
+    setGlobalFetch(jest.fn().mockImplementation(() => new Promise(() => {})));
+
+    render(
+      <ToastProvider>
+        <RepayPanel walletAddress="GTEST" initialLoanId="5" />
+      </ToastProvider>
+    );
+
+    // aria-hidden skeleton shimmers should be in the document
+    const skeletons = document.querySelectorAll('[aria-hidden="true"]');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 });
