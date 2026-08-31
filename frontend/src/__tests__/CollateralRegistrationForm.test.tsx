@@ -3,6 +3,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CollateralRegistrationForm from '@/components/CollateralRegistrationForm';
 import { ToastProvider, ToastContainer } from '@/components/toast';
 
+// Mock focus-trap-react so JSDOM doesn't throw on ConfirmDialog activation
+jest.mock("focus-trap-react", () => {
+  const React = require("react");
+  function FocusTrap({ children }: { children: React.ReactNode }) {
+    return React.createElement(React.Fragment, null, children);
+  }
+  return FocusTrap;
+});
+
 // Mock dependencies
 jest.mock('@stellar/freighter-api', () => ({
   signTransaction: jest.fn().mockResolvedValue({ signedTxXdr: 'signed_xdr' }),
@@ -31,6 +40,20 @@ jest.mock('@/components/ConfirmDialog', () => ({
       </div>
     ) : null,
 }));
+
+jest.mock("framer-motion", () => ({
+  motion: {
+    button: ({ children, ...props }: React.ComponentPropsWithoutRef<"button">) =>
+      React.createElement("button", props, children),
+  },
+  useReducedMotion: jest.fn().mockReturnValue(false),
+}));
+
+jest.mock("next/link", () =>
+  function MockLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+    return React.createElement("a", { href, className }, children);
+  }
+);
 
 global.fetch = jest.fn();
 

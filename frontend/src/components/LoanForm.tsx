@@ -155,12 +155,43 @@ export default function LoanForm({ walletAddress, initialCollateralId }: Props) 
         network: process.env.NEXT_PUBLIC_NETWORK || 'TESTNET',
       });
       const result = await submitSignedXdr(signedTxXdr);
-      toast.success(`Loan disbursed! Loan ID: ${result}`);
+      setSuccessLoanId(String(result));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Loan request failed');
     } finally {
       setLoading(false);
     }
+  }
+
+  // ── Success state ────────────────────────────────────────────────────────────
+
+  if (successLoanId) {
+    return (
+      <div className="bg-white dark:bg-[#1C1008] rounded-2xl p-6 shadow border border-transparent dark:border-gold/20 mt-6">
+        <FormSuccess
+          title="Loan Requested!"
+          summary={
+            <div className="space-y-1 text-left">
+              <p>
+                <span className="font-medium">Loan ID:</span>{' '}
+                <span data-testid="success-loan-id">{successLoanId}</span>
+              </p>
+              <p>
+                <span className="font-medium">Collateral ID:</span>{' '}
+                {collateralId}
+              </p>
+              <p>
+                <span className="font-medium">Amount:</span>{' '}
+                {parseInt(loanAmount).toLocaleString()} stroops
+              </p>
+            </div>
+          }
+          onSubmitAnother={resetToStart}
+          viewDetailsHref="/loans"
+          viewDetailsLabel="View My Loans"
+        />
+      </div>
+    );
   }
 
   return (

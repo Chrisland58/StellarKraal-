@@ -79,6 +79,8 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [successId, setSuccessId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Image upload state
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -266,21 +268,8 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
         network: process.env.NEXT_PUBLIC_NETWORK || 'TESTNET',
       });
       const result = await submitSignedXdr(signedTxXdr);
-      toast.success(`Collateral registered successfully! ID: ${result}`);
       localStorage.removeItem(STORAGE_KEY);
       setLastSaved(null);
-      setFormData({
-        animalType: 'cattle',
-        quantity: '',
-        weight: '',
-        healthStatus: 'good',
-        location: '',
-        appraisedValue: '',
-        breed: '',
-        age: '',
-        image: null,
-      });
-      setImagePreview(null);
       setErrors({});
       setSubmitAttempted(false);
       onSuccess?.(result);
@@ -293,6 +282,42 @@ export default function CollateralRegistrationForm({ walletAddress, onSuccess }:
   };
 
   const isError = status?.startsWith('error:');
+
+  const handleCopy = () => {
+    if (!successId) return;
+    navigator.clipboard.writeText(successId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // ── Success screen ──────────────────────────────────────────────────────────
+  if (successId) {
+    return (
+      <FormSuccess
+        title="Collateral Registered!"
+        summary={
+          <div className="flex flex-col items-center gap-2">
+            <p>
+              <span className="font-medium">Collateral ID:</span>{' '}
+              <span data-testid="success-collateral-id">{successId}</span>
+            </p>
+            <button
+              type="button"
+              onClick={handleCopy}
+              aria-label={copied ? 'Collateral ID copied' : 'Copy collateral ID'}
+              className="text-xs underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--token-success,#16a34a)] rounded"
+            >
+              {copied ? 'Copied!' : 'Copy ID'}
+            </button>
+          </div>
+        }
+        onSubmitAnother={resetForm}
+        viewDetailsHref={`/collateral/${successId}`}
+        viewDetailsLabel="View Collateral"
+      />
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow space-y-4">
