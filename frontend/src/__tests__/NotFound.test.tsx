@@ -12,6 +12,7 @@ import { render, screen } from "@testing-library/react";
 // ── Mock next/navigation ──────────────────────────────────────────────────────
 jest.mock("next/navigation", () => ({
   usePathname: jest.fn(() => "/some/invalid/path"),
+  useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
 // ── Mock next/link ────────────────────────────────────────────────────────────

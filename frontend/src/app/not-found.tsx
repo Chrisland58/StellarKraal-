@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import NotFoundPath from "./NotFoundPath";
+import NotFoundSearch from "./NotFoundSearch";
 
 export const metadata: Metadata = {
   title: "404 Not Found — StellarKraal",
@@ -11,6 +12,7 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: "⊞" },
   { href: "/borrow", label: "Borrow", icon: "💰" },
   { href: "/collateral", label: "Collateral", icon: "🐄" },
+  { href: "/help/faq", label: "Help & FAQ", icon: "❓" },
 ] as const;
 
 export default function NotFound() {
@@ -51,8 +53,11 @@ export default function NotFound() {
         track.
       </p>
 
+      {/* Search bar — #1097 */}
+      <NotFoundSearch />
+
       {/* Navigation suggestions */}
-      <nav aria-label="Suggested pages" className="flex flex-col sm:flex-row gap-3">
+      <nav aria-label="Suggested pages" className="flex flex-wrap justify-center gap-3 mt-8">
         <Link
           href="/"
           className="bg-brown text-cream font-semibold px-6 py-3 rounded-xl hover:bg-brown/80 transition focus:outline-none focus:ring-2 focus:ring-gold"
