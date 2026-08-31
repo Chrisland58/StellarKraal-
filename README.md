@@ -363,6 +363,14 @@ To add a new ADR, copy [`docs/adr/template.md`](docs/adr/template.md), increment
 ---
 website https://kraal-bloom-connect.lovable.app/
 
+## Architecture Decision Records (ADRs)
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [ADR-009](docs/adr/ADR-009-api-v2-design.md) | API v2: REST vs GraphQL vs tRPC | Accepted |
+
+---
+
 ## License
 
 MIT © StellarKraal
