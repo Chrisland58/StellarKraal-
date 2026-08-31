@@ -153,6 +153,297 @@ Look for hot functions in the flamegraph. Common culprits: XDR serialisation, sy
 
 ---
 
+## Benchmarking Guide
+
+This section explains how to run load tests, interpret the results, profile the Node.js
+process with flame graphs, and fix the most common backend bottlenecks.
+
+### Prerequisites
+
+Install [autocannon](https://github.com/mcollina/autocannon) globally (or use `npx`):
+
+```bash
+npm install -g autocannon
+# or use npx autocannon without installing
+```
+
+Ensure the backend is running and reachable before starting any test:
+
+```bash
+cd backend && npm run build && npm start
+# Backend listens on http://localhost:3001 by default
+```
+
+---
+
+### Running Load Tests with autocannon
+
+#### Basic read-path test
+
+```bash
+autocannon \
+  --connections 50 \
+  --duration 30 \
+  --method GET \
+  http://localhost:3001/api/v1/loans
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--connections 50` | 50 concurrent HTTP/1.1 connections held open (pipelining disabled) |
+| `--duration 30` | Run for 30 seconds |
+| `--method GET` | HTTP verb |
+
+#### Authenticated endpoints
+
+Most write routes require a valid JWT. Pass it via a header:
+
+```bash
+autocannon \
+  --connections 10 \
+  --duration 30 \
+  --method GET \
+  --header "Authorization: Bearer <YOUR_JWT>" \
+  http://localhost:3001/api/v1/collateral
+```
+
+#### Write-path test (POST)
+
+Use `--body` and `--content-type` to send a JSON payload:
+
+```bash
+autocannon \
+  --connections 5 \
+  --duration 30 \
+  --method POST \
+  --header "Authorization: Bearer <YOUR_JWT>" \
+  --header "Content-Type: application/json" \
+  --body '{"collateralId":"<id>","amount":500}' \
+  http://localhost:3001/api/v1/loans
+```
+
+> Keep `--connections` low (≤ 10) for write paths. High concurrency on write routes mutates
+> database and on-chain state, which can leave test data behind. Run write-path tests against
+> staging only, never production.
+
+#### Full benchmark suite
+
+The project's built-in benchmark runner exercises all endpoints and records structured results:
+
+```bash
+cd backend
+npm run perf:test
+# Results written to backend/benchmark-results.json
+```
+
+---
+
+### Latency Targets (p50 / p95 / p99)
+
+The following targets apply to the staging environment under a 50-connection, 30-second load test.
+CI fails when p99 exceeds the regression threshold (baseline + 20 %).
+
+| Endpoint | p50 target | p95 target | p99 target | p99 regression threshold |
+|----------|-----------|-----------|-----------|--------------------------|
+| `GET /api/v1/loans` | ≤ 20 ms | ≤ 40 ms | ≤ 50 ms | 60 ms |
+| `GET /api/v1/collateral` | ≤ 20 ms | ≤ 40 ms | ≤ 50 ms | 60 ms |
+| `POST /api/v1/loans` | ≤ 50 ms | ≤ 80 ms | ≤ 100 ms | 120 ms |
+| `POST /api/v1/collateral` | ≤ 50 ms | ≤ 80 ms | ≤ 100 ms | 120 ms |
+| `GET /api/v1/health` | ≤ 5 ms | ≤ 10 ms | ≤ 15 ms | 20 ms |
+
+**Reading the autocannon output**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             Latency (ms)                                    │
+├───────────┬───────────┬───────────┬───────────┬──────────┬──────────────────┤
+│  2.5%     │  50%      │  97.5%    │  99%      │  Avg     │  Max             │
+│  4        │  11       │  38       │  48       │  13.1    │  212             │
+└───────────┴───────────┴───────────┴───────────┴──────────┴──────────────────┘
+```
+
+- **50%** — median latency. Most requests finish in this time.
+- **97.5%** — close to p99. The difference between 97.5% and 99% reveals outlier behaviour.
+- **99%** — the value compared against the regression threshold.
+- **Max** — the single slowest request. A very high max (e.g., 10× p99) often signals a
+  connection pool wait or a GC pause rather than a code-level regression.
+
+---
+
+### Profiling with `--inspect` and Flame Graphs
+
+Profiling lets you pinpoint which functions consume the most CPU, so you can direct
+optimisation effort precisely.
+
+#### Step 1 — Start the server with the CPU profiler
+
+```bash
+cd backend
+node --prof dist/index.js
+```
+
+Node.js writes a V8 isolate log file (`isolate-0x…-v8.log`) to the current directory.
+
+#### Step 2 — Generate load while profiling
+
+Run an autocannon test while the server is under the profiler. This ensures the profile
+captures real request-handling code rather than idle behaviour:
+
+```bash
+autocannon --connections 50 --duration 30 http://localhost:3001/api/v1/loans
+```
+
+Stop the server with `Ctrl+C` after the load test completes. Node.js flushes the log on exit.
+
+#### Step 3 — Convert the log to human-readable output
+
+```bash
+node --prof-process isolate-0x*.log > profile.txt
+```
+
+Open `profile.txt` and look for the **"Bottom up (heavy) profile"** section. The top entries
+are the functions where the process spends the most time.
+
+#### Step 4 — Generate a flame graph (optional but recommended)
+
+[0x](https://github.com/davidmarkclements/0x) generates an interactive SVG flame graph in one step:
+
+```bash
+# Install 0x
+npm install -g 0x
+
+# Profile and generate flame graph automatically
+0x dist/index.js &
+SERVER_PID=$!
+autocannon --connections 50 --duration 30 http://localhost:3001/api/v1/loans
+kill $SERVER_PID
+# 0x writes a .html flame graph to a timestamped directory
+```
+
+Open the generated `.html` file in a browser. Wide bars near the top of the stack indicate hot paths. Look for:
+
+- `JSON.stringify` / `JSON.parse` — large serialisation
+- `Database#prepare` / `Statement#run` — synchronous DB calls outside the pool
+- `SorobanClient` / XDR functions — contract simulation overhead
+- Long GC frames (`v8::internal::Heap`) — memory pressure, increase `--max-old-space-size`
+
+#### Step 5 — Profile using the Chrome DevTools inspector
+
+For a graphical UI without installing extra tools:
+
+```bash
+node --inspect dist/index.js
+```
+
+Open Chrome and navigate to `chrome://inspect`. Click **"Open dedicated DevTools for Node"**.
+Under the **Profiler** tab, click **Start**, run your load test, then click **Stop**. The
+DevTools flame chart is interactive — hover over any frame to see the function name,
+file, and self-time.
+
+---
+
+### Common Bottlenecks and Fixes
+
+#### N+1 Query Problem
+
+**Symptom**: p99 increases linearly as the number of rows grows. In the flame graph you see many short `Statement#get` frames, each for a single row.
+
+**Cause**: The code fetches a list of IDs, then issues one `SELECT` per ID inside a loop instead of a single bulk query.
+
+**Example (bad)**:
+```typescript
+// Fetches each collateral record individually — N+1 queries
+const loans = await listLoans();
+for (const loan of loans) {
+  loan.collateral = await getCollateral(loan.collateralId); // one query per loan
+}
+```
+
+**Fix**: Use a single `WHERE id IN (...)` query or a JOIN:
+```typescript
+const loans = await listLoans();
+const ids = loans.map(l => l.collateralId);
+const collaterals = await getCollateralByIds(ids); // one query for all
+const byId = Object.fromEntries(collaterals.map(c => [c.id, c]));
+for (const loan of loans) {
+  loan.collateral = byId[loan.collateralId];
+}
+```
+
+Alternatively, add the collateral join directly to `listLoans` using a SQL `LEFT JOIN`.
+
+---
+
+#### Large JSON Serialisation
+
+**Symptom**: `JSON.stringify` appears near the top of the flame graph. Response sizes exceed 100 KB for list endpoints.
+
+**Cause**: List endpoints return full objects when the client only needs a subset of fields.
+
+**Fix 1 — Projection**: Return only the fields the client needs:
+```typescript
+// Before: serialise everything
+res.json(loans);
+
+// After: project to a smaller shape
+res.json(loans.map(({ id, status, amount, createdAt }) => ({ id, status, amount, createdAt })));
+```
+
+**Fix 2 — Pagination**: Cap the maximum number of records returned per request. See [PAGINATION.md](PAGINATION.md) for the implemented pagination API.
+
+**Fix 3 — Compression**: The `compressionMiddleware` gzip-compresses responses above a threshold. Confirm it is active and the threshold (`COMPRESSION_THRESHOLD`) is not set too high.
+
+---
+
+#### Synchronous File or Blocking I/O
+
+**Symptom**: Event loop utilisation is high even at low request rates. `fs.readFileSync` or `crypto.randomBytes` (sync variant) appear in the flame graph.
+
+**Fix**: Replace synchronous calls with their async equivalents:
+```typescript
+// Bad — blocks the event loop
+const key = fs.readFileSync('/path/to/key.pem');
+
+// Good — yields the event loop during I/O
+const key = await fs.promises.readFile('/path/to/key.pem');
+```
+
+---
+
+#### Connection Pool Exhaustion
+
+**Symptom**: p99 spikes but CPU is low. Grafana shows "DB pool utilisation" near 100 %. The flame graph shows long waits in `ConnectionPool#acquire`.
+
+**Fix**: Increase `POOL_MAX` in `.env`, or reduce the duration of each transaction to release connections faster. See the [Connection Pool](guides/connection-pool.md) guide for tuning advice.
+
+---
+
+#### XDR / Soroban Simulation Latency
+
+**Symptom**: `POST /api/v1/loans` p99 is consistently 2–5× higher than read routes even under low concurrency.
+
+**Cause**: Every loan request submits a Soroban transaction, which involves network round-trips to the RPC node and XDR serialisation.
+
+**Fixes**:
+- Ensure `RPC_URL` points to a low-latency endpoint (co-located or regional).
+- Cache the result of `simulateTransaction` where the simulation inputs have not changed.
+- Increase `TIMEOUT_CONTRACT_MS` conservatively rather than letting requests timeout and retry.
+
+---
+
+### Benchmark Workflow
+
+Follow this workflow whenever you make a change that might affect performance:
+
+1. **Establish a baseline** — run `npm run perf:test` on `main` before your change.
+2. **Apply the change** on your branch.
+3. **Re-run the benchmark** — `npm run perf:test` on your branch.
+4. **Compare results** — check `benchmark-results.json`. p99 should not regress beyond baseline + 20 %.
+5. **Update baselines** if the change genuinely improves performance — see [Updating Baselines](#updating-baselines).
+6. **Attach results** to the PR as a comment or artifact so reviewers can verify the numbers.
+
+---
+
 ## Updating Baselines
 
 After a genuine performance improvement (not a regression), update the baselines so CI stays meaningful:
