@@ -129,20 +129,9 @@ export default function DashboardClient() {
           <div className="mt-4">
             <TransactionHistory walletAddress={wallet} />
           </div>
-          {isHealthLoading ? (
-            <SkeletonHealthDashboard />
-          ) : (
-            <div className="mt-8 rounded-2xl bg-white p-6 shadow">
-              <h2 className="mb-3 text-xl font-semibold text-brown">
-                <GlossaryTerm termKey="healthFactor" />
-              </h2>
-              <div className="flex items-center gap-2">
-                <input
-                  className="flex-1 rounded-lg border border-brown/30 px-3 py-2"
-                  placeholder="Loan ID"
-                  value={loanId}
-                  onChange={(e) => setLoanId(e.target.value)}
-                />
+          <div className="border-b border-brown/20 mb-6">
+            <div className="flex gap-4" role="tablist" aria-label="Dashboard views">
+              {tabs.map((tab, index) => (
                 <button
                   key={tab.id}
                   role="tab"
